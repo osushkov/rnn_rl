@@ -1,3 +1,9 @@
 include_rules
 : src/*.o \
+src/simulation/simulation.a \
+src/rnn/rnn.a \
+src/rnn/cuda/cuda.a \
+src/rnn/cuda/kernels/kernels.a \
+src/math/math.a \
+src/common/common.a \
 |> $(CC) %f -o %o $(CLFLAGS) |> rnn_rl

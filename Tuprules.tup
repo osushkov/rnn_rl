@@ -3,7 +3,7 @@ CUDACC = nvcc
 
 CCFLAGS += -pthread
 CCFLAGS += -std=c++11
-CCFLAGS += -I/usr/local/include -I/usr/include/eigen3
+CCFLAGS += -I/usr/local/include -I/usr/include/eigen3 -I/usr/include/bullet
 CCFLAGS += -Wall -Wno-deprecated-declarations
 
 CUDAFLAGS += --std=c++11
@@ -22,7 +22,7 @@ endif
 
 CLFLAGS += -L/usr/local/cuda/lib64 -lcudart
 CLFLAGS += -L/usr/local/lib
-CLFLAGS += -lsfml-graphics -lsfml-window -lsfml-system
+CLFLAGS += -lsfml-graphics -lsfml-window -lsfml-system -lBulletCollision -lBulletDynamics -lLinearMath
 CLFLAGS += -pthread
 CLFLAGS += -std=c++11
 CLFLAGS += -Wl,--no-as-needed
