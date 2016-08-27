@@ -1,15 +1,33 @@
 #pragma once
 
 #include "../common/Common.hpp"
+#include "../renderer/Renderer.hpp"
+#include <btBulletDynamicsCommon.h>
+#include <cassert>
 
 namespace simulation {
 
+struct CartSpec {
+  float cartWeightKg;
+  float pendulumLength;
+  float pendulumWeightKg;
+
+  CartSpec(float cartWeightKg, float pendulumLength, float pendulumWeightKg)
+      : cartWeightKg(cartWeightKg), pendulumLength(pendulumLength),
+        pendulumWeightKg(pendulumWeightKg) {
+    assert(cartWeightKg > 0.0f);
+    assert(pendulumLength > 0.0f);
+    assert(pendulumWeightKg > 0.0f);
+  }
+};
+
 class Cart {
 public:
-  Cart(float cartWeightKg, float pendulumLength, float pendulumWeightKg);
+  Cart(const CartSpec &spec, btDiscreteDynamicsWorld *pWorld);
   ~Cart();
 
-  void Render(void);
+  void Reset(float groundHeight);
+  void Render(renderer::Renderer *renderer);
 
   // Applies impulse in the x-axis (left or right push).
   void ApplyImpulse(float newtons);

@@ -38,15 +38,15 @@ struct PhysicsWorld::PhysicsWorldImpl {
     dynamicsWorld->addRigidBody(groundRigidBody.get());
   }
 
-  void Step(void) {}
+  void Step(float seconds) { dynamicsWorld->stepSimulation(seconds, 1, seconds); }
 
-  btDiscreteDynamicsWorld *GetWorld(void) { return nullptr; }
+  btDiscreteDynamicsWorld *GetWorld(void) { return dynamicsWorld.get(); }
 };
 
 PhysicsWorld::PhysicsWorld() : impl(new PhysicsWorldImpl()) {}
 
 PhysicsWorld::~PhysicsWorld() = default;
 
-void PhysicsWorld::Step(void) { impl->Step(); }
+void PhysicsWorld::Step(float seconds) { impl->Step(seconds); }
 
 btDiscreteDynamicsWorld *PhysicsWorld::GetWorld(void) { return impl->GetWorld(); }

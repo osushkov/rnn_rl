@@ -1,6 +1,7 @@
 include_rules
 : src/*.o \
 src/simulation/simulation.a \
+src/renderer/renderer.a \
 src/rnn/rnn.a \
 src/rnn/cuda/cuda.a \
 src/rnn/cuda/kernels/kernels.a \

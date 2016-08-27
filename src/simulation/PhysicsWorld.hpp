@@ -10,7 +10,7 @@ public:
   PhysicsWorld();
   ~PhysicsWorld();
 
-  void Step(void);
+  void Step(float seconds);
   btDiscreteDynamicsWorld *GetWorld(void);
 
 private:
