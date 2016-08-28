@@ -11,9 +11,10 @@ struct SFMLRenderer::SFMLRendererImpl {
 
   SFMLRendererImpl(unsigned width, unsigned height, const string &windowName)
       : window(sf::VideoMode(width, height), windowName),
-        view(sf::Vector2f(0, 0), sf::Vector2f(200, 200)) {
+        view(sf::Vector2f(0, 0), sf::Vector2f(400, 200)) {
     assert(width > 0 && height > 0);
-    view.zoom(0.5f);
+
+    view.rotate(180.0f);
     window.setView(view);
     window.clear();
   }
@@ -41,7 +42,12 @@ struct SFMLRenderer::SFMLRendererImpl {
     window.draw(rect);
   }
 
-  void DrawLine(const Vector2 &start, const Vector2 &end) {}
+  void DrawLine(const Vector2 &start, const Vector2 &end) {
+    sf::Vertex line[] = {sf::Vertex(sf::Vector2f(start.x, start.y)),
+                         sf::Vertex(sf::Vector2f(end.x, end.y))};
+
+    window.draw(line, 2, sf::Lines);
+  }
 };
 
 SFMLRenderer::SFMLRenderer(unsigned width, unsigned height, const string &windowName)

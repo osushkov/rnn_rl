@@ -18,7 +18,7 @@ static constexpr float BOX_DEPTH = 20.0f;
 
 static constexpr float WHEEL_FRICTION = 1.0f;
 static constexpr float WHEEL_RADIUS = 3.0f;
-static constexpr float WHEEL_WIDTH = 2.0f;
+static constexpr float WHEEL_WIDTH = BOX_DEPTH;
 static constexpr float WHEEL_MASS = 1.0f;
 static constexpr float WHEEL_DAMPING = 0.75f;
 
@@ -106,7 +106,7 @@ struct PendulumSpec {
   }
 };
 
-struct Pendumul {
+struct Pendulum {
   PendulumSpec spec;
 
   uptr<btDefaultMotionState> motionState;
@@ -114,11 +114,11 @@ struct Pendumul {
   uptr<btRigidBody> body;
   uptr<btHingeConstraint> joint;
 
-  Pendumul(const PendulumSpec &spec, btRigidBody *box) : spec(spec) {
+  Pendulum(const PendulumSpec &spec, btRigidBody *box) : spec(spec) {
     motionState = make_unique<btDefaultMotionState>(
         btTransform(btQuaternion(0.0f, 0.0f, 0.0f, 1.0f), btVector3(0.0f, 0.0f, 0.0f)));
 
-    shape = make_unique<btCylinderShape>(btVector3(spec.length / 2.0f, 1.0f, 1.0f));
+    shape = make_unique<btCylinderShape>(btVector3(0.1f, spec.length / 2.0f, 0.1f));
     shape->setMargin(btScalar(0.001f));
 
     btVector3 pendulumInertia(0.0f, 0.0f, 0.0f);
@@ -126,12 +126,12 @@ struct Pendumul {
 
     body = make_unique<btRigidBody>(btRigidBody::btRigidBodyConstructionInfo(
         spec.mass, motionState.get(), shape.get(), pendulumInertia));
-    body->setFriction(1.0f);
+    body->setFriction(0.6f);
     body->setRestitution(RESTITUTION);
     body->setDamping(LINEAR_DAMPING, ANGULAR_DAMPING);
 
     joint = make_unique<btHingeConstraint>(
-        *box, *body.get(), btVector3(0.0f, BOX_HEIGHT / 2.0f + 0.01, 0.0f),
+        *box, *body.get(), btVector3(0.0f, BOX_HEIGHT / 2.0f + 0.1f, 0.0f),
         btVector3(0.0f, -spec.length / 2.0f, 0.0f), btVector3(0.0f, 0.0f, 1.0f),
         btVector3(0.0f, 0.0f, 1.0f), true);
   }
@@ -141,7 +141,7 @@ struct Cart::CartImpl {
   CartSpec spec;
 
   uptr<Box> box;
-  uptr<Pendumul> pendulum;
+  uptr<Pendulum> pendulum;
   vector<uptr<Wheel>> wheels;
 
   CartImpl(const CartSpec &spec, btDiscreteDynamicsWorld *pWorld) : spec(spec) {
@@ -153,6 +153,11 @@ struct Cart::CartImpl {
 
     pWorld->addRigidBody(box->body.get());
     box->body->activate();
+
+    pWorld->addRigidBody(pendulum->body.get());
+    pWorld->addConstraint(pendulum->joint.get());
+    pendulum->body->activate();
+
     for (auto &wheel : wheels) {
       pWorld->addRigidBody(wheel->body.get());
       pWorld->addConstraint(wheel->joint.get());
@@ -165,70 +170,107 @@ struct Cart::CartImpl {
     box = make_unique<Box>(BoxSpec(boxExtents, spec.cartWeightKg));
   }
 
-  void createPendulum(void) {}
+  void createPendulum(void) {
+    pendulum = make_unique<Pendulum>(PendulumSpec(30.0f, 2.0f), box->body.get());
+  }
 
   void createWheels(void) {
     WheelSpec baseWheel(btVector3(0.0f, 0.0f, 0.0f), btVector3(0.0f, 0.0f, 1.0f), WHEEL_RADIUS,
                         WHEEL_WIDTH, WHEEL_MASS);
 
     WheelSpec wheel0 = baseWheel;
-    wheel0.position = btVector3(BOX_LENGTH / 2.0f, 0.0f, BOX_DEPTH / 2.0f + WHEEL_WIDTH + 0.1f);
+    wheel0.position = btVector3(BOX_LENGTH / 2.0f, -WHEEL_RADIUS - BOX_HEIGHT / 2.0f - 0.5f, 0.0f);
     wheels.push_back(make_unique<Wheel>(wheel0, box->body.get()));
 
     WheelSpec wheel1 = baseWheel;
-    wheel1.position = btVector3(-BOX_LENGTH / 2.0f, 0.0f, BOX_DEPTH / 2.0f + WHEEL_WIDTH + 0.1f);
+    wheel1.position = btVector3(-BOX_LENGTH / 2.0f, -WHEEL_RADIUS - BOX_HEIGHT / 2.0f - 0.5f, 0.0f);
     wheels.push_back(make_unique<Wheel>(wheel1, box->body.get()));
-
-    WheelSpec wheel2 = baseWheel;
-    wheel2.position = btVector3(BOX_LENGTH / 2.0f, 0.0f, -BOX_DEPTH / 2.0f - WHEEL_WIDTH - 0.1f);
-    wheels.push_back(make_unique<Wheel>(wheel2, box->body.get()));
-
-    WheelSpec wheel3 = baseWheel;
-    wheel3.position = btVector3(-BOX_LENGTH / 2.0f, 0.0f, -BOX_DEPTH / 2.0f - WHEEL_WIDTH - 0.1f);
-    wheels.push_back(make_unique<Wheel>(wheel3, box->body.get()));
   }
 
   void Reset(float groundHeight) {
+    float boxYOffset = WHEEL_RADIUS + groundHeight - wheels[0]->spec.position.y();
+
     btTransform boxTransform;
     boxTransform.setIdentity();
-    boxTransform.setOrigin(btVector3(0.0f, WHEEL_RADIUS + groundHeight, 0.0f));
+    boxTransform.setOrigin(btVector3(0.0f, boxYOffset, 0.0f));
     box->motionState->setWorldTransform(boxTransform);
     box->body->setMotionState(box->motionState.get());
+    box->body->setLinearVelocity(btVector3(0.0f, 0.0f, 0.0f));
+    box->body->setAngularVelocity(btVector3(0.0f, 0.0f, 0.0f));
+
+    btTransform pendulumTransform;
+    pendulumTransform.setIdentity();
+    pendulumTransform.setOrigin(btVector3(
+        0.0f, boxYOffset + BOX_HEIGHT / 2.0f + pendulum->spec.length / 2.0f + 0.1f, 0.0f));
+    pendulum->motionState->setWorldTransform(pendulumTransform);
+    pendulum->body->setMotionState(pendulum->motionState.get());
+    pendulum->body->setLinearVelocity(btVector3(0.0f, 0.0f, 0.0f));
+    pendulum->body->setAngularVelocity(btVector3(0.0f, 0.0f, 0.0f));
 
     for (auto &wheel : wheels) {
       btTransform wheelTransform;
       wheelTransform.setIdentity();
       wheelTransform.setOrigin(btVector3(wheel->spec.position.x(),
-                                         WHEEL_RADIUS + groundHeight + wheel->spec.position.y(),
+                                         boxYOffset + wheel->spec.position.y(),
                                          wheel->spec.position.z()));
       wheel->motionState->setWorldTransform(wheelTransform);
       wheel->body->setMotionState(wheel->motionState.get());
+      wheel->body->setLinearVelocity(btVector3(0.0f, 0.0f, 0.0f));
+      wheel->body->setAngularVelocity(btVector3(0.0f, 0.0f, 0.0f));
     }
   }
 
   void Render(renderer::Renderer *renderer) {
+    renderWheels(renderer);
+    renderPendulum(renderer);
+    renderBody(renderer);
+
+    // cout << "box: " << trans.getOrigin().getX() << "," << trans.getOrigin().getY() << ","
+    //      << trans.getOrigin().getZ() << endl;
+  }
+
+  void renderBody(renderer::Renderer *renderer) {
     btTransform trans;
     box->body->getMotionState()->getWorldTransform(trans);
 
     Vector2 boxSize(BOX_LENGTH / 2.0f, BOX_HEIGHT / 2.0f);
     Vector2 boxPos(trans.getOrigin().getX(), trans.getOrigin().getY());
     renderer->DrawRectangle(boxSize, boxPos);
+  }
 
+  void renderWheels(renderer::Renderer *renderer) {
     for (auto &wheel : wheels) {
       btTransform wtrans;
       wheel->body->getMotionState()->getWorldTransform(wtrans);
 
       Vector2 wheelPos(wtrans.getOrigin().getX(), wtrans.getOrigin().getY());
       renderer->DrawCircle(wheelPos, WHEEL_RADIUS);
-
-      btQuaternion tmp = wtrans.getRotation();
-      cout << "wheel: " << tmp.getAngle() << " " << wtrans.getOrigin().getX() << endl;
-      cout << "angle: " << wheel->joint->getHingeAngle() << endl;
-      // wtrans.getOrigin().ge
     }
-    //
-    cout << "box: " << trans.getOrigin().getX() << "," << trans.getOrigin().getY() << ","
-         << trans.getOrigin().getZ() << endl;
+  }
+
+  void renderPendulum(renderer::Renderer *renderer) {
+    btTransform trans;
+    pendulum->body->getMotionState()->getWorldTransform(trans);
+
+    float angle = pendulum->joint->getHingeAngle();
+    btQuaternion rot = trans.getRotation();
+    btVector3 axis = rot.getAxis();
+
+    Vector2 start(trans.getOrigin().getX() + sin(-angle) * pendulum->spec.length / 2.0f,
+                  trans.getOrigin().getY() + cos(-angle) * pendulum->spec.length / 2.0f);
+
+    Vector2 end(trans.getOrigin().getX() - sin(-angle) * pendulum->spec.length / 2.0f,
+                trans.getOrigin().getY() - cos(-angle) * pendulum->spec.length / 2.0f);
+
+    renderer->DrawLine(start, end);
+    renderer->DrawCircle(start, 1.0);
+
+    // cout << "hinge: " << pendulum->joint->getHingeAngle() << endl;
+    // cout << "axis: " << axis.x() << " " << axis.y() << " " << axis.z() << endl;
+    // cout << "angle: " << rot.getAngle() << endl;
+    // cout << "pendulum: " << trans.getOrigin().getX() << "," <<
+    // trans.getOrigin().getY() << ","
+    //      << trans.getOrigin().getZ() << endl;
   }
 
   void ApplyImpulse(float newtons) {

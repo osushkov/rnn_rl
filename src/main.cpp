@@ -14,12 +14,18 @@ int main(int argc, char **argv) {
   PhysicsWorld world;
   Cart cart(CartSpec(5.0f, 1.0f, 1.0f), world.GetWorld());
   cart.Reset(0.0f);
-  cart.ApplyImpulse(-10.0f);
+  cart.ApplyImpulse(-100.0f);
 
-  uptr<Renderer> renderer = make_unique<SFMLRenderer>(400, 400, "Cart Sim");
+  uptr<Renderer> renderer = make_unique<SFMLRenderer>(800, 400, "Cart Sim");
 
   for (unsigned i = 0; i < 1000; i++) {
+    if (i % 100 == 0 && i > 0) {
+      cart.Reset(0.0f);
+      cart.ApplyImpulse(-100.0f * (-1.0f + 2.0f * (rand() % 2)));
+    }
+
     world.Step(1.0 / 30.0f);
+    world.Render(renderer.get());
     cart.Render(renderer.get());
     renderer->SwapBuffers();
     cout << "step: " << i << endl;
