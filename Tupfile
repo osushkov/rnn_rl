@@ -1,5 +1,6 @@
 include_rules
 : src/*.o \
+src/learning/learning.a \
 src/simulation/simulation.a \
 src/renderer/renderer.a \
 src/rnn/rnn.a \
