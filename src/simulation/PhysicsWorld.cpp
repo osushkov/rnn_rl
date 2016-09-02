@@ -10,7 +10,7 @@ static constexpr float RESTITUTION = 0.01f;
 static constexpr float LINEAR_DAMPING = 0.0f;
 static constexpr float ANGULAR_DAMPING = 0.0f;
 
-static constexpr float WALL_HEIGHT = 50.0f;
+static constexpr float WALL_HEIGHT = 10.0f;
 static constexpr float WALL_MASS = 1000.0f;
 
 struct Wall {

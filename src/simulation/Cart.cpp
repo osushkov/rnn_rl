@@ -273,12 +273,18 @@ struct Cart::CartImpl {
     //      << trans.getOrigin().getZ() << endl;
   }
 
-  void ApplyImpulse(float newtons) {
-    btVector3 impulse(newtons, 0.0f, newtons);
-    btVector3 pos(0.0f, 0.0f, 0.0f);
-    // btVector3 pos(box->spec.halfExtents.x() * (newtons < 0.0f ? 1.0f : -1.0f), 0.0f, 0.0f);
+  void ApplyCartImpulse(float newtons) {
+    btVector3 impulse(newtons, 0.0f, 0.0f);
+    btVector3 pos(box->spec.halfExtents.x() * (newtons < 0.0f ? 1.0f : -1.0f), 0.0f, 0.0f);
 
     box->body->applyImpulse(impulse, pos);
+  }
+
+  void ApplyPendulumImpulse(float newtons) {
+    btVector3 impulse(newtons, 0.0f, 0.0f);
+    btVector3 pos(0.0f, pendulum->spec.length / 2.0f, 0.0f);
+
+    pendulum->body->applyImpulse(impulse, pos);
   }
 };
 
@@ -291,4 +297,6 @@ void Cart::Reset(float groundHeight) { impl->Reset(groundHeight); }
 
 void Cart::Render(renderer::Renderer *renderer) { impl->Render(renderer); }
 
-void Cart::ApplyImpulse(float newtons) { impl->ApplyImpulse(newtons); }
+void Cart::ApplyCartImpulse(float newtons) { impl->ApplyCartImpulse(newtons); }
+
+void Cart::ApplyPendulumImpulse(float newtons) { impl->ApplyPendulumImpulse(newtons); }

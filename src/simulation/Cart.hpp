@@ -30,7 +30,13 @@ public:
   void Render(renderer::Renderer *renderer);
 
   // Applies impulse in the x-axis (left or right push).
-  void ApplyImpulse(float newtons);
+  void ApplyCartImpulse(float newtons);
+  void ApplyPendulumImpulse(float newtons);
+
+  float GetHingeAngle(void) const;
+  float GetCartXPos(void) const;
+  float GetPendulumX(void) const;
+  float GetPendulumY(void) const;
 
 private:
   struct CartImpl;
