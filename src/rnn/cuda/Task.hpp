@@ -16,11 +16,12 @@ enum class TaskType {
   SCALE_MATRIX,
   TRANSPOSE_MATRIX,
   FORWARD_INCREMENT,
+  TARGET_QVALUES,
   ADAM_UPDATE,
   ADAM_INCREMENT,
   COPY_MATRIX_D2H,
   COPY_MATRIX_H2D,
-  COPY_MATRIX_D2D,
+  COPY_MATRIX_D2DQ,
 };
 
 struct LayerActivationData {
@@ -35,12 +36,14 @@ struct LayerActivationData {
 struct ErrorMeasureData {
   ConnectionActivation networkOutput;
   TargetOutput targetOutput;
+  CuMatrix deltaMask;
   LayerBatchDeltas outputLayer;
 
   ErrorMeasureData() = default;
   ErrorMeasureData(ConnectionActivation networkOutput, TargetOutput targetOutput,
-                   LayerBatchDeltas outputLayer)
-      : networkOutput(networkOutput), targetOutput(targetOutput), outputLayer(outputLayer) {}
+                   CuMatrix deltaMask, LayerBatchDeltas outputLayer)
+      : networkOutput(networkOutput), targetOutput(targetOutput), deltaMask(deltaMask),
+        outputLayer(outputLayer) {}
 };
 
 struct PropagateDeltaData {
@@ -107,6 +110,19 @@ struct ForwardIncrementData {
   ForwardIncrementData() = default;
   ForwardIncrementData(CuMatrix layerWeights, ConnectionActivation input, CuMatrix output)
       : layerWeights(layerWeights), input(input), output(output) {}
+};
+
+struct TargetQValuesData {
+  CuMatrix nextTargetActivation;
+  CuMatrix batchRewards;
+  float discountFactor;
+  CuMatrix outTargetValue;
+
+  TargetQValuesData() = default;
+  TargetQValuesData(CuMatrix nextTargetActivation, CuMatrix batchRewards, float discountFactor,
+                    CuMatrix outTargetValue)
+      : nextTargetActivation(nextTargetActivation), batchRewards(batchRewards),
+        discountFactor(discountFactor), outTargetValue(outTargetValue) {}
 };
 
 struct AdamUpdateData {
@@ -192,6 +208,7 @@ union TaskData {
   ScaleMatrixData scaleMatrixData;
   TransposeMatrixData transposeMatrixData;
   ForwardIncrementData forwardIncrementData;
+  TargetQValuesData targetQValuesData;
   AdamUpdateData adamUpdateData;
   AdamIncrementData adamIncrementData;
   CopyMatrixD2HData copyMatrixD2HData;
@@ -211,10 +228,11 @@ struct Task {
   }
 
   static Task ErrorMeasure(ConnectionActivation networkOutput, TargetOutput targetOutput,
-                           LayerBatchDeltas outputLayer) {
+                           CuMatrix deltaMask, LayerBatchDeltas outputLayer) {
     Task task;
     task.type = TaskType::ERROR_MEASURE;
-    task.data.errorMeasureData = ErrorMeasureData(networkOutput, targetOutput, outputLayer);
+    task.data.errorMeasureData =
+        ErrorMeasureData(networkOutput, targetOutput, deltaMask, outputLayer);
     return task;
   }
 
@@ -260,6 +278,15 @@ struct Task {
     Task task;
     task.type = TaskType::FORWARD_INCREMENT;
     task.data.forwardIncrementData = ForwardIncrementData(layerWeights, input, output);
+    return task;
+  }
+
+  static Task TargetQValues(CuMatrix nextTargetActivation, CuMatrix batchRewards,
+                            float discountFactor, CuMatrix outTargetValue) {
+    Task task;
+    task.type = TaskType::TARGET_QVALUES;
+    task.data.targetQValuesData =
+        TargetQValuesData(nextTargetActivation, batchRewards, discountFactor, outTargetValue);
     return task;
   }
 

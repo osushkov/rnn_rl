@@ -43,9 +43,10 @@ struct RNN::RNNImpl {
 
   void Update(const vector<SliceBatch> &trace) { cudaTrainer.Train(trace); }
 
-  void Refresh(void) {
+  void RefreshAndGetTarget(void) {
     vector<pair<LayerConnection, math::MatrixView>> weights = getHostWeights();
     cudaTrainer.GetWeights(weights);
+    cudaTrainer.UpdateTarget();
   }
 
   vector<pair<LayerConnection, math::MatrixView>> getHostWeights(void) {
@@ -160,4 +161,4 @@ EMatrix RNN::Process(const EMatrix &input) { return impl->Process(input); }
 
 void RNN::Update(const vector<SliceBatch> &trace) { impl->Update(trace); }
 
-void RNN::Refresh(void) { impl->Refresh(); }
+void RNN::RefreshAndGetTarget(void) { impl->RefreshAndGetTarget(); }

@@ -6,9 +6,10 @@ namespace rnn {
 
 struct SliceBatch {
   EMatrix batchInput;
-  EMatrix batchOutput;
+  EMatrix batchActions; // one hot encoding
+  EMatrix batchRewards;
 
-  SliceBatch(const EMatrix &batchInput, const EMatrix &batchOutput)
-      : batchInput(batchInput), batchOutput(batchOutput) {}
+  SliceBatch(const EMatrix &batchInput, const EMatrix &batchActions, const EMatrix &batchRewards)
+      : batchInput(batchInput), batchActions(batchActions), batchRewards(batchRewards) {}
 };
 }

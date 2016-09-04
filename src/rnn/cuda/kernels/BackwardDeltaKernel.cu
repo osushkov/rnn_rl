@@ -55,7 +55,6 @@ void backwardDeltaKernel(LayerBatchDeltas nextDelta, CuMatrix tw, ConnectionActi
   if (row < outDelta.batchSize && col < outDelta.delta.cols) {
     float od = *Elem(connection.derivative, row, col);
     *Elem(outDelta.delta, row, col) += sum * od;
-    *Elem(connection.derivative, row, col) = 0.0f;
   }
 }
 

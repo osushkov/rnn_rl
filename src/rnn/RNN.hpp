@@ -20,7 +20,7 @@ public:
   EMatrix Process(const EMatrix &input);
 
   void Update(const vector<SliceBatch> &trace);
-  void Refresh(void);
+  void RefreshAndGetTarget(void);
 
 private:
   struct RNNImpl;

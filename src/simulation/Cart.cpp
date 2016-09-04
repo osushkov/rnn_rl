@@ -251,10 +251,7 @@ struct Cart::CartImpl {
   void renderPendulum(renderer::Renderer *renderer) {
     btTransform trans;
     pendulum->body->getMotionState()->getWorldTransform(trans);
-
     float angle = pendulum->joint->getHingeAngle();
-    btQuaternion rot = trans.getRotation();
-    btVector3 axis = rot.getAxis();
 
     Vector2 start(trans.getOrigin().getX() + sin(-angle) * pendulum->spec.length / 2.0f,
                   trans.getOrigin().getY() + cos(-angle) * pendulum->spec.length / 2.0f);
@@ -264,13 +261,6 @@ struct Cart::CartImpl {
 
     renderer->DrawLine(start, end);
     renderer->DrawCircle(start, 1.0);
-
-    // cout << "hinge: " << pendulum->joint->getHingeAngle() << endl;
-    // cout << "axis: " << axis.x() << " " << axis.y() << " " << axis.z() << endl;
-    // cout << "angle: " << rot.getAngle() << endl;
-    // cout << "pendulum: " << trans.getOrigin().getX() << "," <<
-    // trans.getOrigin().getY() << ","
-    //      << trans.getOrigin().getZ() << endl;
   }
 
   void ApplyCartImpulse(float newtons) {
@@ -286,6 +276,30 @@ struct Cart::CartImpl {
 
     pendulum->body->applyImpulse(impulse, pos);
   }
+
+  float GetHingeAngle(void) const { return pendulum->joint->getHingeAngle(); }
+
+  float GetCartXPos(void) const {
+    btTransform trans;
+    box->body->getMotionState()->getWorldTransform(trans);
+    return trans.getOrigin().getX();
+  }
+
+  float GetPendulumX(void) const {
+    btTransform trans;
+    pendulum->body->getMotionState()->getWorldTransform(trans);
+    float angle = pendulum->joint->getHingeAngle();
+
+    return trans.getOrigin().getX() + sin(-angle) * pendulum->spec.length / 2.0f;
+  }
+
+  float GetPendulumY(void) const {
+    btTransform trans;
+    pendulum->body->getMotionState()->getWorldTransform(trans);
+    float angle = pendulum->joint->getHingeAngle();
+
+    return trans.getOrigin().getY() + cos(-angle) * pendulum->spec.length / 2.0f;
+  }
 };
 
 Cart::Cart(const CartSpec &spec, btDiscreteDynamicsWorld *pWorld)
@@ -300,3 +314,8 @@ void Cart::Render(renderer::Renderer *renderer) { impl->Render(renderer); }
 void Cart::ApplyCartImpulse(float newtons) { impl->ApplyCartImpulse(newtons); }
 
 void Cart::ApplyPendulumImpulse(float newtons) { impl->ApplyPendulumImpulse(newtons); }
+
+float Cart::GetHingeAngle(void) const { return impl->GetHingeAngle(); }
+float Cart::GetCartXPos(void) const { return impl->GetCartXPos(); }
+float Cart::GetPendulumX(void) const { return impl->GetPendulumX(); }
+float Cart::GetPendulumY(void) const { return impl->GetPendulumY(); }

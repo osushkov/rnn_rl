@@ -28,17 +28,46 @@ constexpr float ADAM_EPSILON = 10e-8;
 enum class TrainTask {
   NONE,
   EXIT,
-  CLEAR_BUFFERS,
+  CLEAR_FORWARDPROP_BUFFERS,
+  CLEAR_BACKPROP_BUFFERS,
+  CALCULATE_TARGETS,
   FORWARDPROP,
   BACKPROP_DELTA,
   COMPUTE_AND_UPDATE_GRADIENTS,
+};
+
+struct SliceStaging {
+  math::MatrixView input;
+  math::MatrixView actions;
+  math::MatrixView rewards;
+
+  SliceStaging(const RNNSpec &spec) {
+    input.rows = spec.maxBatchSize;
+    input.cols = spec.numInputs;
+    input.data = (float *)util::AllocPinned(input.rows * input.cols * sizeof(float));
+
+    actions.rows = spec.maxBatchSize;
+    actions.cols = spec.numOutputs;
+    actions.data = (float *)util::AllocPinned(actions.rows * actions.cols * sizeof(float));
+
+    rewards.rows = spec.maxBatchSize;
+    rewards.cols = 1;
+    rewards.data = (float *)util::AllocPinned(rewards.rows * rewards.cols * sizeof(float));
+  }
+
+  void Cleanup(void) {
+    util::FreePinned(input.data);
+    util::FreePinned(actions.data);
+    util::FreePinned(rewards.data);
+  }
 };
 
 struct CudaTrainer::CudaTrainerImpl {
   RNNSpec spec;
   unsigned maxTraceLength;
 
-  vector<CuLayer> layers;
+  vector<CuLayer> learningLayers;
+  vector<CuLayer> targetLayers;
 
   CuDeltaAccum deltaAccum;
   CuGradientAccum gradientAccum;
@@ -46,7 +75,7 @@ struct CudaTrainer::CudaTrainerImpl {
   CuAdamState adamState;
 
   TaskExecutor defaultExecutor;
-  vector<pair<math::MatrixView, math::MatrixView>> inputOutputStaging;
+  vector<SliceStaging> inputOutputStaging;
   vector<TargetOutput> traceTargets;
 
   mutex m; // controls access to tasks for the workers.
@@ -74,24 +103,14 @@ struct CudaTrainer::CudaTrainerImpl {
     adamState.Clear();
 
     for (const auto &layerSpec : spec.layers) {
-      layers.emplace_back(spec, layerSpec);
+      learningLayers.emplace_back(spec, layerSpec);
+      targetLayers.emplace_back(spec, layerSpec);
     }
 
+    UpdateTarget();
+
     for (unsigned i = 0; i < maxTraceLength; i++) {
-      math::MatrixView inputStaging;
-      inputStaging.rows = spec.maxBatchSize;
-      inputStaging.cols = spec.numInputs;
-      inputStaging.data =
-          (float *)util::AllocPinned(inputStaging.rows * inputStaging.cols * sizeof(float));
-
-      math::MatrixView outputStaging;
-      outputStaging.rows = spec.maxBatchSize;
-      outputStaging.cols = spec.numOutputs;
-      outputStaging.data =
-          (float *)util::AllocPinned(outputStaging.rows * outputStaging.cols * sizeof(float));
-
-      inputOutputStaging.emplace_back(inputStaging, outputStaging);
-
+      inputOutputStaging.emplace_back(spec);
       traceTargets.emplace_back(spec.maxBatchSize,
                                 util::AllocMatrix(spec.maxBatchSize, spec.numOutputs));
     }
@@ -106,7 +125,11 @@ struct CudaTrainer::CudaTrainerImpl {
       w.join();
     }
 
-    for (auto &layer : layers) {
+    for (auto &layer : targetLayers) {
+      layer.Cleanup();
+    }
+
+    for (auto &layer : learningLayers) {
       layer.Cleanup();
     }
 
@@ -116,8 +139,7 @@ struct CudaTrainer::CudaTrainerImpl {
     adamState.Cleanup();
 
     for (auto &staging : inputOutputStaging) {
-      util::FreePinned(staging.first.data);
-      util::FreePinned(staging.second.data);
+      staging.Cleanup();
     }
 
     for (auto &tt : traceTargets) {
@@ -147,6 +169,8 @@ struct CudaTrainer::CudaTrainerImpl {
       }
       assert(found);
     }
+
+    UpdateTarget();
   }
 
   void GetWeights(vector<pair<LayerConnection, math::MatrixView>> &outWeights) {
@@ -170,6 +194,19 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
+  void UpdateTarget(void) {
+    assert(targetLayers.size() == learningLayers.size());
+    for (unsigned i = 0; i < targetLayers.size(); i++) {
+      assert(targetLayers[i].incoming.size() == learningLayers[i].incoming.size());
+      for (unsigned j = 0; j < targetLayers[i].incoming.size(); j++) {
+        assert(targetLayers[i].incoming[j].first == learningLayers[i].incoming[j].first);
+
+        defaultExecutor.Execute(Task::CopyMatrixD2D(learningLayers[i].incoming[j].second,
+                                                    targetLayers[i].incoming[j].second))
+      }
+    }
+  }
+
   void Train(const vector<SliceBatch> &trace) {
     assert(trace.size() <= maxTraceLength);
     assert(!trace.empty());
@@ -181,7 +218,7 @@ struct CudaTrainer::CudaTrainerImpl {
       curTraceLength = trace.size();
     }
 
-    pushTraceToDevice(trace);
+    pushTraceToStaging(trace);
 
     for (TrainTask task : taskList) {
       {
@@ -203,18 +240,25 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
-  void pushTraceToDevice(const vector<SliceBatch> &trace) {
+  void pushTraceToStaging(const vector<SliceBatch> &trace) {
     for (unsigned i = 0; i < trace.size(); i++) {
-      assert(trace[i].batchInput.cols() == inputOutputStaging[i].first.cols);
-      assert(trace[i].batchInput.rows() <= inputOutputStaging[i].first.rows);
-      assert(trace[i].batchOutput.cols() == inputOutputStaging[i].second.cols);
-      assert(trace[i].batchOutput.rows() <= inputOutputStaging[i].second.rows);
+      assert(trace[i].batchInput.cols() == inputOutputStaging[i].input.cols);
+      assert(trace[i].batchInput.rows() <= inputOutputStaging[i].input.rows);
+      assert(trace[i].batchActions.cols() == inputOutputStaging[i].actions.cols);
+      assert(trace[i].batchActions.rows() <= inputOutputStaging[i].actions.rows);
+      assert(trace[i].batchRewards.cols() == inputOutputStaging[i].rewards.cols);
+      assert(trace[i].batchRewards.rows() <= inputOutputStaging[i].rewards.rows);
 
       size_t inputSize = trace[i].batchInput.rows() * trace[i].batchInput.cols() * sizeof(float);
-      memcpy(inputOutputStaging[i].first.data, trace[i].batchInput.data(), inputSize);
+      memcpy(inputOutputStaging[i].input.data, trace[i].batchInput.data(), inputSize);
 
-      size_t outputSize = trace[i].batchOutput.rows() * trace[i].batchOutput.cols() * sizeof(float);
-      memcpy(inputOutputStaging[i].second.data, trace[i].batchOutput.data(), outputSize);
+      size_t actionsSize =
+          trace[i].batchActions.rows() * trace[i].batchActions.cols() * sizeof(float);
+      memcpy(inputOutputStaging[i].actions.data, trace[i].batchActions.data(), actionsSize);
+
+      size_t rewardsSize =
+          trace[i].batchRewards.rows() * trace[i].batchRewards.cols() * sizeof(float);
+      memcpy(inputOutputStaging[i].rewards.data, trace[i].batchRewards.data(), rewardsSize);
     }
   }
 
@@ -243,8 +287,14 @@ struct CudaTrainer::CudaTrainerImpl {
           switch (prevTask) {
           case TrainTask::EXIT:
             return;
-          case TrainTask::CLEAR_BUFFERS:
-            workerClearBuffers(executor, workerIdx);
+          case TrainTask::CLEAR_FORWARDPROP_BUFFERS:
+            workerClearForwardBuffers(executor, workerIdx);
+            break;
+          case TrainTask::CLEAR_BACKPROP_BUFFERS:
+            workerClearBackpropBuffers(executor, workerIdx);
+            break;
+          case TrainTask::CALCULATE_TARGETS:
+            workerCalculateTargets(executor, workerIdx);
             break;
           case TrainTask::FORWARDPROP:
             workerForwardprop(executor, workerIdx);
@@ -265,18 +315,8 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
-  void workerClearBuffers(TaskExecutor &executor, unsigned workerIdx) {
+  void workerClearForwardBuffers(TaskExecutor &executor, unsigned workerIdx) {
     unsigned skip = workers.size();
-
-    for (unsigned i = workerIdx; i < deltaAccum.allDeltaAccum.size(); i += skip) {
-      deltaAccum.allDeltaAccum[i].samples = 0;
-      executor.Execute(Task::FillMatrix(deltaAccum.allDeltaAccum[i].accumDelta, 0.0f));
-    }
-
-    for (unsigned i = workerIdx; i < gradientAccum.allWeightsAccum.size(); i += skip) {
-      gradientAccum.allWeightsAccum[i].samples = 0;
-      // executor.Execute(Task::FillMatrix(gradientAccum.allWeightsAccum[i].accumGradient, 0.0f));
-    }
 
     for (unsigned i = workerIdx; i < spec.maxTraceLength; i += skip) {
       CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
@@ -292,10 +332,61 @@ struct CudaTrainer::CudaTrainerImpl {
           CuMatrix trimmed = cd.activation;
           trimmed.cols--;
           executor.Execute(Task::FillMatrix(trimmed, 0.0f));
-          // executor.Execute(Task::FillMatrix(cd.derivative, 0.0f));
+          executor.Execute(Task::FillMatrix(cd.derivative, 0.0f));
         }
       }
     }
+  }
+
+  void workerClearBackpropBuffers(TaskExecutor &executor, unsigned workerIdx) {
+    unsigned skip = workers.size();
+
+    for (unsigned i = workerIdx; i < deltaAccum.allDeltaAccum.size(); i += skip) {
+      deltaAccum.allDeltaAccum[i].samples = 0;
+      executor.Execute(Task::FillMatrix(deltaAccum.allDeltaAccum[i].accumDelta, 0.0f));
+    }
+
+    for (unsigned i = workerIdx; i < gradientAccum.allWeightsAccum.size(); i += skip) {
+      gradientAccum.allWeightsAccum[i].samples = 0;
+      executor.Execute(Task::FillMatrix(gradientAccum.allWeightsAccum[i].accumGradient, 0.0f));
+    }
+  }
+
+  void workerCalculateTargets(TaskExecutor &executor, unsigned workerIdx) {
+    unsigned skip = workers.size();
+    for (unsigned i = workerIdx; i < spec.maxTraceLength; i += skip) {
+      CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
+      if (ts != nullptr) {
+        executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].actions, ts->actionsMask));
+        executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].rewards, ts->rewards));
+      }
+    }
+
+    // Calculate Targets has no 'trivial' stream level parallelism.
+    if (workerIdx != 0) {
+      return;
+    }
+
+    for (int i = 0; i < static_cast<int>(curTraceLength); i++) {
+      CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
+      assert(ts != nullptr);
+
+      bool foundInput = false;
+      for (auto &cd : ts->connectionData) {
+        if (cd.connection.srcLayerId == 0) {
+          executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].input, cd.activation));
+          cd.haveActivation = true;
+          foundInput = true;
+        }
+      }
+      assert(foundInput);
+
+      // Do the forward pass through this time slice.
+      forwardProp(executor, i, targetLayers);
+      assert(ts->networkOutput.haveActivation);
+    }
+
+    // TODO: calculate targets here.
   }
 
   void workerForwardprop(TaskExecutor &executor, unsigned workerIdx) {
@@ -323,7 +414,7 @@ struct CudaTrainer::CudaTrainerImpl {
       assert(foundInput);
 
       // Do the forward pass through this time slice.
-      forwardProp(executor, i);
+      forwardProp(executor, i, learningLayers);
       assert(ts->networkOutput.haveActivation);
     }
   }
@@ -390,7 +481,7 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
-  void forwardProp(TaskExecutor &executor, int timestamp) {
+  void forwardProp(TaskExecutor &executor, int timestamp, vector<CuLayer> &layers) {
     for (auto &layer : layers) {
       assert(!layer.incoming.empty());
 
@@ -457,15 +548,15 @@ struct CudaTrainer::CudaTrainerImpl {
     ConnectionActivation networkOut(curBatchSize, ts->networkOutput.activation,
                                     ts->networkOutput.derivative);
 
-    CuLayerAccum *outputDelta = deltaAccum.GetDelta(layers.back().layerId, timestamp);
+    CuLayerAccum *outputDelta = deltaAccum.GetDelta(learningLayers.back().layerId, timestamp);
     assert(outputDelta != nullptr && outputDelta->samples == 0);
 
     executor.Execute(Task::ErrorMeasure(networkOut, traceTargets[timestamp],
                                         LayerBatchDeltas(curBatchSize, outputDelta->accumDelta)));
     outputDelta->samples = 1;
 
-    assert(layers.back().isOutput);
-    recursiveBackprop(executor, layers.back(), timestamp);
+    assert(learningLayers.back().isOutput);
+    recursiveBackprop(executor, learningLayers.back(), timestamp);
   }
 
   void recursiveBackprop(TaskExecutor &executor, const CuLayer &layer, int timestamp) {
@@ -527,7 +618,7 @@ struct CudaTrainer::CudaTrainerImpl {
   }
 
   CuLayer *findLayer(unsigned layerId) {
-    for (auto &layer : layers) {
+    for (auto &layer : learningLayers) {
       if (layer.layerId == layerId) {
         return &layer;
       }
@@ -547,5 +638,7 @@ void CudaTrainer::SetWeights(const vector<pair<LayerConnection, math::MatrixView
 void CudaTrainer::GetWeights(vector<pair<LayerConnection, math::MatrixView>> &outWeights) {
   impl->GetWeights(outWeights);
 }
+
+void CudaTrainer::UpdateTarget(void) { impl->UpdateTarget(); }
 
 void CudaTrainer::Train(const vector<SliceBatch> &trace) { impl->Train(trace); }

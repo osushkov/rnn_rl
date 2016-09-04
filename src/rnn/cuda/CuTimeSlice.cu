@@ -9,7 +9,9 @@ using namespace rnn::cuda;
 
 CuTimeSlice::CuTimeSlice(const RNNSpec &spec, int timestamp)
     : timestamp(timestamp),
-      networkOutput(LayerConnection(0, 0, 0), spec.maxBatchSize, spec.numOutputs + 1) {
+      networkOutput(LayerConnection(0, 0, 0), spec.maxBatchSize, spec.numOutputs + 1),
+      actionsMask(util::AllocMatrix(spec.maxBatchSize, spec.numOutputs)),
+      rewards(util::AllocMatrix(spec.maxBatchSize, 1)) {
 
   assert(timestamp >= 0);
   for (const auto &connection : spec.connections) {
@@ -19,6 +21,9 @@ CuTimeSlice::CuTimeSlice(const RNNSpec &spec, int timestamp)
 }
 
 void CuTimeSlice::Cleanup(void) {
+  util::FreeMatrix(actionsMask);
+  util::FreeMatrix(rewards);
+  
   networkOutput.Cleanup();
   for (auto &cd : connectionData) {
     cd.Cleanup();

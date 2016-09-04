@@ -24,7 +24,6 @@ void updateMomentumAndRMS(CuMatrix gradient, CuMatrix momentum, CuMatrix rms,
 
   *Elem(momentum, row, col) = m * beta1 + g * (1.0f - beta1);
   *Elem(rms, row, col) = r * beta2 + g * g * (1.0f - beta2);
-  *Elem(gradient, row, col) = 0.0f;
 }
 
 __global__

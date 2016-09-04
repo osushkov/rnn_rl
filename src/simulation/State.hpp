@@ -2,6 +2,7 @@
 #pragma once
 
 #include "../common/Common.hpp"
+#include "../math/Math.hpp"
 #include "Action.hpp"
 #include <array>
 #include <iosfwd>
@@ -11,11 +12,12 @@ namespace simulation {
 
 class State {
   float cartXPos;
-  float hingeAngle;
+  float pendulumXPos;
+  float pendulumYPos;
 
 public:
   State();
-  State(float cartXPos, float hingeAngle);
+  State(float cartXPos, float pendulumXPos, float pendulumYPos);
   State(const State &other);
 
   State &operator=(const State &other);
@@ -23,10 +25,13 @@ public:
   size_t HashCode() const;
 
   float GetCartXPos(void) const;
-  float GetHingeAngle(void) const;
+  float GetPendulumXPos(void) const;
+  float GetPendulumYPos(void) const;
 
   // Returns indices into the GameAction::ALL_ACTIONS vector.
   vector<unsigned> AvailableActions(void) const;
+
+  EVector Encode(void) const;
 };
 }
 

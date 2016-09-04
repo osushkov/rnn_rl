@@ -15,6 +15,7 @@ public:
 
   void SetWeights(const vector<pair<LayerConnection, math::MatrixView>> &weights);
   void GetWeights(vector<pair<LayerConnection, math::MatrixView>> &outWeights);
+  void UpdateTarget(void);
 
   void Train(const vector<SliceBatch> &trace);
 

@@ -7,8 +7,8 @@ namespace rnn {
 namespace cuda {
 namespace ErrorMeasureKernel {
 
-void Apply(ConnectionActivation networkOutput, TargetOutput targetOutput, LayerBatchDeltas out,
-           cudaStream_t stream);
+void Apply(ConnectionActivation networkOutput, TargetOutput targetOutput, CuMatrix deltaMask,
+           LayerBatchDeltas out, cudaStream_t stream);
 }
 }
 }

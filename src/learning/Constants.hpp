@@ -3,7 +3,8 @@
 
 namespace learning {
 
-static constexpr unsigned MOMENTS_BATCH_SIZE = 1000;
+static constexpr unsigned EXPERIENCE_BATCH_SIZE = 100;
+static constexpr unsigned EXPERIENCE_MAX_TRACE_LENGTH = 8;
 static constexpr unsigned TARGET_FUNCTION_UPDATE_RATE = 5000;
 static constexpr float REWARD_DELAY_DISCOUNT = 0.99f;
 }
