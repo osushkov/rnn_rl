@@ -16,6 +16,8 @@ public:
   RNN(const RNN &) = delete;
   RNN &operator=(const RNN &) = delete;
 
+  RNNSpec GetSpec(void) const;
+
   void ClearMemory(void);
   EMatrix Process(const EMatrix &input);
 

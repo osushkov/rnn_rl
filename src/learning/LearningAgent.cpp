@@ -17,11 +17,15 @@ struct LearningAgent::LearningAgentImpl {
   float pRandom;
   float temperature;
 
-  uptr<rnn::RNN> learningNet;
-  uptr<rnn::RNN> targetNet;
+  uptr<rnn::RNN> network;
   unsigned itersSinceTargetUpdated = 0;
 
   LearningAgentImpl() : pRandom(0.1f), temperature(0.1f) {
+    createNetwork();
+    itersSinceTargetUpdated = 0;
+  }
+
+  void createNetwork(void) {
     rnn::RNNSpec spec;
 
     spec.numInputs = 3;
@@ -48,9 +52,7 @@ struct LearningAgent::LearningAgentImpl {
     spec.layers.emplace_back(2, 64, false);
     spec.layers.emplace_back(3, spec.numOutputs, true);
 
-    learningNet = make_unique<rnn::RNN>(spec);
-    targetNet = learningNet->RefreshAndGetTarget();
-    itersSinceTargetUpdated = 0;
+    network = make_unique<rnn::RNN>(spec);
   }
 
   Action SelectAction(const State *state) {
@@ -58,6 +60,11 @@ struct LearningAgent::LearningAgentImpl {
 
     boost::shared_lock<boost::shared_mutex> lock(rwMutex);
     return chooseBestAction(state);
+  }
+
+  void ResetMemory(void) {
+    boost::unique_lock<boost::shared_mutex> lock(rwMutex);
+    network->ClearMemory();
   }
 
   void SetPRandom(float pRandom) {
@@ -82,57 +89,75 @@ struct LearningAgent::LearningAgentImpl {
     }
   }
 
-  void Learn(const vector<Experience> &experiences, float learnRate) {
-    if (itersSinceTargetUpdated > TARGET_FUNCTION_UPDATE_RATE) {
-      boost::unique_lock<boost::shared_mutex> lock(rwMutex);
+  void Learn(const vector<Experience> &experiences) {
+    RNNSpec rnnSpec = network->GetSpec();
+    assert(experiences.size() <= rnnSpec.maxBatchSize);
 
-      targetNet = learningNet->RefreshAndGetTarget();
+    if (experiences.empty() || experiences.front().moments.empty()) {
+      return;
+    }
+
+    assert(experiences.front().moments.size() <= network->GetSpec().maxTraceLength);
+
+    if (itersSinceTargetUpdated > TARGET_FUNCTION_UPDATE_RATE) {
+      Finalise();
       itersSinceTargetUpdated = 0;
     }
     itersSinceTargetUpdated++;
 
-    vector<neuralnetwork::TrainingSample> learnSamples;
-    learnSamples.reserve(moments.size());
+    vector<SliceBatch> trainInput;
+    trainInput.reserve(experiences.size());
 
-    for (const auto &moment : moments) {
-      learnSamples.emplace_back(moment.initialState, moment.successorState,
-                                GameAction::ACTION_INDEX(moment.actionTaken),
-                                moment.isSuccessorTerminal, moment.reward, REWARD_DELAY_DISCOUNT);
+    // TODO: this could probably be just a "static" slice batch vector that is kept and reset
+    // between Learn calls.
+    for (unsigned i = 0; i < experiences.front().moments.size(); i++) {
+      trainInput.emplace_back(EMatrix(rnnSpec.numInputs, experiences.size()),
+          EMatrix(rnnSpec.numOutputs, experiences.size()), EMatrix(1, experiences.size()));
+
+      trainInput.back().batchInput.fill(0.0f);
+      trainInput.back().batchActions.fill(0.0f);
+      trainInput.back().batchRewards.fill(0.0f);
     }
 
-    learningNet->Update(neuralnetwork::SamplesProvider(learnSamples), learnRate);
+    for (unsigned i = 0; i < experiences.size(); i++) {
+      assert(experiences[i].moments.size() == trainInput.size());
+
+      for (unsigned j = 0; j < experiences[i].moments.size(); j++) {
+        unsigned actionIndex = Action::ACTION_INDEX(experiences[i].moments[j].actionTaken);
+
+        trainInput[j].batchInput.col(i) = experiences[i].moments[j].observedState;
+        trainInput[j].batchActions(actionIndex, i) = 1.0f;
+        trainInput[j].batchRewards(0, i) = experiences[i].moments[j].reward;
+      }
+    }
+
+    network->Learn(trainInput);
   }
 
   void Finalise(void) {
     // obtain a write lock
     boost::unique_lock<boost::shared_mutex> lock(rwMutex);
-
-    if (learningNet == nullptr) {
-      return;
-    }
-
-    targetNet = learningNet->RefreshAndGetTarget();
-    learningNet.release();
-    learningNet = nullptr;
+    network->RefreshAndGetTarget();
   }
 
   Action chooseBestAction(const State *state) {
-    EMatrix qvalues = targetNet->Process(state->Encode());
-    assert(qvalues.rows() == static_cast<int>(GameAction::ALL_ACTIONS().size()));
+    EMatrix qvalues = network->Process(state->Encode());
+    assert(qvalues.rows() == static_cast<int>(Action::ALL_ACTIONS().size()));
+    assert(qvalues.cols() == 1);
 
     std::vector<unsigned> availableActions = state.AvailableActions();
     assert(availableActions.size() > 0);
 
-    Action bestAction = GameAction::ACTION(availableActions[0]);
+    unsigned bestActionIndex = availableActions[0];
     float bestQValue = qvalues(availableActions[0], 0);
 
     for (unsigned i = 1; i < availableActions.size(); i++) {
       if (qvalues(availableActions[i]) > bestQValue) {
         bestQValue = qvalues(availableActions[i], 0);
-        bestAction = Action::ACTION(availableActions[i]);
+        bestActionIndex = availableActions[i];
       }
     }
-    return bestAction;
+    return Action::ACTION(bestActionIndex);
   }
 
   Action chooseExplorativeAction(const State *state) {
@@ -140,34 +165,35 @@ struct LearningAgent::LearningAgentImpl {
     return GameAction::ACTION(aa[rand() % aa.size()]);
   }
 
-  Action chooseWeightedAction(const State *state) {
-    EMatrix qvalues = targetNet->Process(state->Encode());
-    assert(qvalues.rows() == static_cast<int>(GameAction::ALL_ACTIONS().size()));
-
-    std::vector<unsigned> availableActions = state->AvailableActions();
-    std::vector<float> weights;
-
-    for (unsigned i = 0; i < availableActions.size(); i++) {
-      weights.push_back(qvalues(availableActions[i]) / temperature, 0);
-    }
-    weights = Util::SoftmaxWeights(weights);
-
-    float sample = Util::RandInterval(0.0, 1.0);
-    for (unsigned i = 0; i < weights.size(); i++) {
-      sample -= weights[i];
-      if (sample <= 0.0f) {
-        return Action::ACTION(availableActions[i]);
-      }
-    }
-
-    return chooseExplorativeAction(state);
-  }
+  // Action chooseWeightedAction(const State *state) {
+  //   EMatrix qvalues = targetNet->Process(state->Encode());
+  //   assert(qvalues.rows() == static_cast<int>(GameAction::ALL_ACTIONS().size()));
+  //
+  //   std::vector<unsigned> availableActions = state->AvailableActions();
+  //   std::vector<float> weights;
+  //
+  //   for (unsigned i = 0; i < availableActions.size(); i++) {
+  //     weights.push_back(qvalues(availableActions[i]) / temperature, 0);
+  //   }
+  //   weights = Util::SoftmaxWeights(weights);
+  //
+  //   float sample = Util::RandInterval(0.0, 1.0);
+  //   for (unsigned i = 0; i < weights.size(); i++) {
+  //     sample -= weights[i];
+  //     if (sample <= 0.0f) {
+  //       return Action::ACTION(availableActions[i]);
+  //     }
+  //   }
+  //
+  //   return chooseExplorativeAction(state);
+  // }
 };
 
 LearningAgent::LearningAgent() : impl(new LearningAgentImpl()) {}
 LearningAgent::~LearningAgent() = default;
 
 Action LearningAgent::SelectAction(const State *state) { return impl->SelectAction(state); }
+void LearningAgent::ResetMemory(void) { impl->ResetMemory(); }
 
 void LearningAgent::SetPRandom(float pRandom) { impl->SetPRandom(pRandom); }
 void LearningAgent::SetTemperature(float temperature) { impl->SetTemperature(temperature); }

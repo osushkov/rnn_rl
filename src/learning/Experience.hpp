@@ -12,23 +12,19 @@ using namespace simulation;
 namespace learning {
 
 struct ExperienceMoment {
-  EVector initialState;
+  EVector observedState;
   Action actionTaken;
-  EVector successorState;
   float reward;
-  bool isSuccessorTerminal;
 
   ExperienceMoment() = default;
-  ExperienceMoment(EVector initialState, Action actionTaken, EVector successorState, float reward,
-                   bool isSuccessorTerminal)
-      : initialState(initialState), actionTaken(actionTaken), successorState(successorState),
-        reward(reward), isSuccessorTerminal(isSuccessorTerminal) {}
+  ExperienceMoment(const EVector &observedState, const Action &actionTaken, float reward)
+      : observedState(observedState), actionTaken(actionTaken), reward(reward) {}
 };
 
 struct Experience {
-  vector<ExperienceMoment> experienceSequence;
+  vector<ExperienceMoment> moments;
 
   Experience() = default;
-  Experience(const vector<ExperienceMoment> moments) : experienceSequence(moments) {}
+  Experience(const vector<ExperienceMoment> &moments) : moments(moments) {}
 };
 }

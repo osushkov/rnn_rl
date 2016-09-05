@@ -16,5 +16,9 @@ public:
 
     return Action::ACTION(actions[rand() % actions.size()]);
   }
+
+  void ResetMemory(void) override {
+    // Nothing to do.
+  }
 };
 }

@@ -12,5 +12,6 @@ class Agent {
 public:
   virtual ~Agent() = default;
   virtual Action SelectAction(const State *state) = 0;
+  virtual void ResetMemory(void) = 0;
 };
 }

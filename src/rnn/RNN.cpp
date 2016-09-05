@@ -155,6 +155,10 @@ struct RNN::RNNImpl {
 RNN::RNN(const RNNSpec &spec) : impl(new RNNImpl(spec)) {}
 RNN::~RNN() = default;
 
+RNNSpec RNN::GetSpec(void) const {
+  return impl->spec;
+}
+
 void RNN::ClearMemory(void) { impl->ClearMemory(); }
 
 EMatrix RNN::Process(const EMatrix &input) { return impl->Process(input); }

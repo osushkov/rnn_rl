@@ -18,12 +18,13 @@ public:
   virtual ~LearningAgent();
 
   Action SelectAction(const State *state) override;
+  void ResetMemory(void) override;
 
   void SetPRandom(float pRandom);
   void SetTemperature(float temperature);
 
   Action SelectLearningAction(const State *state);
-  void Learn(const vector<Experience> &experiences, float learnRate);
+  void Learn(const vector<Experience> &experiences);
 
   void Finalise(void);
 
