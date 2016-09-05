@@ -29,9 +29,9 @@ struct LearningAgent::LearningAgentImpl {
     rnn::RNNSpec spec;
 
     spec.numInputs = 3;
-    spec.numOutputs = GameAction::ALL_ACTIONS().size();
-    spec.hiddenActivation = neuralnetwork::LayerActivation::TANH;
-    spec.outputActivation = neuralnetwork::LayerActivation::TANH;
+    spec.numOutputs = Action::ALL_ACTIONS().size();
+    spec.hiddenActivation = rnn::LayerActivation::TANH;
+    spec.outputActivation = rnn::LayerActivation::TANH;
     spec.nodeActivationRate = 1.0f;
     spec.maxBatchSize = EXPERIENCE_BATCH_SIZE;
     spec.maxTraceLength = EXPERIENCE_MAX_TRACE_LENGTH;
@@ -81,7 +81,7 @@ struct LearningAgent::LearningAgentImpl {
     assert(state != nullptr);
 
     boost::shared_lock<boost::shared_mutex> lock(rwMutex);
-    if (Util::RandInterval(0.0, 1.0) < pRandom) {
+    if (math::RandInterval(0.0, 1.0) < pRandom) {
       return chooseExplorativeAction(state);
     } else {
       // return chooseWeightedAction(state);
@@ -90,7 +90,7 @@ struct LearningAgent::LearningAgentImpl {
   }
 
   void Learn(const vector<Experience> &experiences) {
-    RNNSpec rnnSpec = network->GetSpec();
+    rnn::RNNSpec rnnSpec = network->GetSpec();
     assert(experiences.size() <= rnnSpec.maxBatchSize);
 
     if (experiences.empty() || experiences.front().moments.empty()) {
@@ -105,7 +105,7 @@ struct LearningAgent::LearningAgentImpl {
     }
     itersSinceTargetUpdated++;
 
-    vector<SliceBatch> trainInput;
+    vector<rnn::SliceBatch> trainInput;
     trainInput.reserve(experiences.size());
 
     // TODO: this could probably be just a "static" slice batch vector that is kept and reset
@@ -131,7 +131,7 @@ struct LearningAgent::LearningAgentImpl {
       }
     }
 
-    network->Learn(trainInput);
+    network->Update(trainInput);
   }
 
   void Finalise(void) {
@@ -145,7 +145,7 @@ struct LearningAgent::LearningAgentImpl {
     assert(qvalues.rows() == static_cast<int>(Action::ALL_ACTIONS().size()));
     assert(qvalues.cols() == 1);
 
-    std::vector<unsigned> availableActions = state.AvailableActions();
+    std::vector<unsigned> availableActions = state->AvailableActions();
     assert(availableActions.size() > 0);
 
     unsigned bestActionIndex = availableActions[0];
@@ -162,12 +162,12 @@ struct LearningAgent::LearningAgentImpl {
 
   Action chooseExplorativeAction(const State *state) {
     auto aa = state->AvailableActions();
-    return GameAction::ACTION(aa[rand() % aa.size()]);
+    return Action::ACTION(aa[rand() % aa.size()]);
   }
 
   // Action chooseWeightedAction(const State *state) {
   //   EMatrix qvalues = targetNet->Process(state->Encode());
-  //   assert(qvalues.rows() == static_cast<int>(GameAction::ALL_ACTIONS().size()));
+  //   assert(qvalues.rows() == static_cast<int>(Action::ALL_ACTIONS().size()));
   //
   //   std::vector<unsigned> availableActions = state->AvailableActions();
   //   std::vector<float> weights;
@@ -202,8 +202,8 @@ Action LearningAgent::SelectLearningAction(const State *state) {
   return impl->SelectLearningAction(state);
 }
 
-void LearningAgent::Learn(const vector<Experience> &experiences, float learnRate) {
-  impl->Learn(experiences, learnRate);
+void LearningAgent::Learn(const vector<Experience> &experiences) {
+  impl->Learn(experiences);
 }
 
 void LearningAgent::Finalise(void) { impl->Finalise(); }

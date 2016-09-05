@@ -21,7 +21,7 @@ void errorMeasureKernel(ConnectionActivation nnOut, TargetOutput target, CuMatri
 
   float mask = *Elem(deltaMask, row, col);
   *Elem(out.delta, row, col) =
-      mask * (*Elem(nnOut.activation, row, col) - *Elem(target.value, row, col);
+      mask * (*Elem(nnOut.activation, row, col) - *Elem(target.value, row, col));
 }
 
 void ErrorMeasureKernel::Apply(ConnectionActivation networkOutput, TargetOutput targetOutput,

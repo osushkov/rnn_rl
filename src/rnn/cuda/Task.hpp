@@ -21,7 +21,7 @@ enum class TaskType {
   ADAM_INCREMENT,
   COPY_MATRIX_D2H,
   COPY_MATRIX_H2D,
-  COPY_MATRIX_D2DQ,
+  COPY_MATRIX_D2D,
 };
 
 struct LayerActivationData {

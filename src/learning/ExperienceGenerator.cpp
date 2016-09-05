@@ -23,10 +23,10 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
       world(new PhysicsWorld()),
       cart(new Cart(CART_SPEC, world->GetWorld())) {}
 
-  vector<Experience> GenerateTrace(Agent *agent) {
+  vector<ExperienceMoment> GenerateTrace(Agent *agent) {
     assert(agent != nullptr);
 
-    vector<Experience> result;
+    vector<ExperienceMoment> result;
     result.reserve(MAX_TRACE_LENGTH);
 
     cart->Reset(0.0f);
@@ -46,6 +46,6 @@ ExperienceGenerator::ExperienceGenerator() : impl(new ExperienceGeneratorImpl())
 
 ExperienceGenerator::~ExperienceGenerator() = default;
 
-vector<Experience> ExperienceGenerator::GenerateTrace(Agent *agent) {
+vector<ExperienceMoment> ExperienceGenerator::GenerateTrace(Agent *agent) {
   return impl->GenerateTrace(agent);
 }

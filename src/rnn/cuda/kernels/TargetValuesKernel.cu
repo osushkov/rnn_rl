@@ -1,5 +1,5 @@
 
-#include "TargetValuesKernel.hpp"
+#include "TargetValuesKernel.cuh"
 #include "Constants.hpp"
 #include "../Types.cuh"
 #include <cuda_runtime.h>
@@ -16,7 +16,7 @@ void targetValuesKernel(CuMatrix nextTargetActivation, CuMatrix batchRewards,
 
   float maxVal = *Elem(nextTargetActivation, batchIndex, 0);
   for (unsigned i = 1; i < nextTargetActivation.cols - 1; i++) {
-    maxVal = fmaxf(maxVal, *Elem(nextTargetActivation, batchIndex, i)));
+    maxVal = fmaxf(maxVal, *Elem(nextTargetActivation, batchIndex, i));
   }
 
   float target = *Elem(batchRewards, batchIndex, 0) + discountFactor * maxVal;
@@ -31,8 +31,8 @@ void targetValuesKernel(CuMatrix nextTargetActivation, CuMatrix batchRewards,
 void TargetValuesKernel::Apply(CuMatrix nextTargetActivation, CuMatrix batchRewards,
                                float discountFactor, CuMatrix outTargetValue, cudaStream_t stream) {
 
-  assert(nextTargetActivation.activation.cols == outTargetValue.cols);
-  assert(nextTargetActivation.activation.rows == outTargetValue.rows);
+  assert(nextTargetActivation.cols == outTargetValue.cols);
+  assert(nextTargetActivation.rows == outTargetValue.rows);
   assert(batchRewards.cols == 1);
   assert(batchRewards.rows == outTargetValue.rows);
   assert(discountFactor > 0.0f && discountFactor <= 1.0f);
