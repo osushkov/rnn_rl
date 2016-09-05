@@ -88,7 +88,9 @@ struct CudaTrainer::CudaTrainerImpl {
   Semaphore taskSem;
 
   vector<TrainTask> taskList = {
-      TrainTask::CLEAR_BUFFERS, TrainTask::FORWARDPROP, TrainTask::BACKPROP_DELTA,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CALCULATE_TARGETS,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::FORWARDPROP,
+      TrainTask::CLEAR_BACKPROP_BUFFERS,       TrainTask::BACKPROP_DELTA,
       TrainTask::COMPUTE_AND_UPDATE_GRADIENTS,
   };
 
@@ -201,8 +203,8 @@ struct CudaTrainer::CudaTrainerImpl {
       for (unsigned j = 0; j < targetLayers[i].incoming.size(); j++) {
         assert(targetLayers[i].incoming[j].first == learningLayers[i].incoming[j].first);
 
-        defaultExecutor.Execute(Task::CopyMatrixD2D(learningLayers[i].incoming[j].second,
-                                                    targetLayers[i].incoming[j].second))
+        defaultExecutor.Execute(Task::CopyMatrixD2D(learningLayers[i].incoming[j].second.weights,
+                                                    targetLayers[i].incoming[j].second.weights));
       }
     }
   }
@@ -210,7 +212,6 @@ struct CudaTrainer::CudaTrainerImpl {
   void Train(const vector<SliceBatch> &trace) {
     assert(trace.size() <= maxTraceLength);
     assert(!trace.empty());
-    assert(trace.front().batchInput.rows() == trace.front().batchOutput.rows());
 
     {
       std::lock_guard<std::mutex> lk(m);
@@ -386,7 +387,15 @@ struct CudaTrainer::CudaTrainerImpl {
       assert(ts->networkOutput.haveActivation);
     }
 
-    // TODO: calculate targets here.
+    for (int i = 0; i < static_cast<int>(curTraceLength) - 1; i++) {
+      CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
+      CuTimeSlice *nextSlice = layerMemory.GetTimeSlice(i + 1);
+      assert(ts != nullptr && nextSlice != nullptr);
+
+      traceTargets[i].batchSize = curBatchSize;
+      executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards, 0.99f,
+                                           traceTargets[i].value));
+    }
   }
 
   void workerForwardprop(TaskExecutor &executor, unsigned workerIdx) {
@@ -396,17 +405,13 @@ struct CudaTrainer::CudaTrainerImpl {
     }
 
     for (int i = 0; i < static_cast<int>(curTraceLength); i++) {
-      // Copy the input/output from host to device memory.
-      traceTargets[i].batchSize = curBatchSize;
-      executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].second, traceTargets[i].value));
-
       CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
       assert(ts != nullptr);
 
       bool foundInput = false;
       for (auto &cd : ts->connectionData) {
         if (cd.connection.srcLayerId == 0) {
-          executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].first, cd.activation));
+          executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].input, cd.activation));
           cd.haveActivation = true;
           foundInput = true;
         }
@@ -551,7 +556,7 @@ struct CudaTrainer::CudaTrainerImpl {
     CuLayerAccum *outputDelta = deltaAccum.GetDelta(learningLayers.back().layerId, timestamp);
     assert(outputDelta != nullptr && outputDelta->samples == 0);
 
-    executor.Execute(Task::ErrorMeasure(networkOut, traceTargets[timestamp],
+    executor.Execute(Task::ErrorMeasure(networkOut, traceTargets[timestamp], ts->actionsMask,
                                         LayerBatchDeltas(curBatchSize, outputDelta->accumDelta)));
     outputDelta->samples = 1;
 
