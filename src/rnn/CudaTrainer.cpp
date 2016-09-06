@@ -430,7 +430,7 @@ struct CudaTrainer::CudaTrainerImpl {
       return;
     }
 
-    for (int i = static_cast<int>(curTraceLength) - 1; i >= 0; i--) {
+    for (int i = static_cast<int>(curTraceLength) - 2; i >= 0; i--) {
       backProp(executor, i);
     }
   }

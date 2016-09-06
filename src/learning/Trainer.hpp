@@ -10,7 +10,7 @@ public:
   Trainer();
   ~Trainer();
 
-  uptr<LearningAgent> TrainAgent(unsigned iters);
+  void TrainAgent(LearningAgent *agent, unsigned iters);
 
 private:
   struct TrainerImpl;

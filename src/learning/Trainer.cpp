@@ -21,7 +21,7 @@ using namespace learning;
 
 static constexpr unsigned EXPERIENCE_MEMORY_SIZE = 1000000;
 
-static constexpr float INITIAL_PRANDOM = 0.5f;
+static constexpr float INITIAL_PRANDOM = 0.3f;
 static constexpr float TARGET_PRANDOM = 0.05f;
 
 static constexpr float INITIAL_TEMPERATURE = 0.5f;
@@ -30,21 +30,17 @@ static constexpr float TARGET_TEMPERATURE = 0.001f;
 struct Trainer::TrainerImpl {
   atomic<unsigned> numLearnIters;
 
-  uptr<LearningAgent> TrainAgent(unsigned iters) {
+  void TrainAgent(LearningAgent *agent, unsigned iters) {
     auto experienceMemory = make_unique<ExperienceMemory>(EXPERIENCE_MEMORY_SIZE);
     auto experienceGenerator = make_unique<ExperienceGenerator>();
     numLearnIters = 0;
 
-    uptr<LearningAgent> agent = make_unique<LearningAgent>();
-
     std::thread playoutThread =
-        startExperienceThread(agent.get(), experienceMemory.get(), experienceGenerator.get(), iters);
-    std::thread learnThread = startLearnThread(agent.get(), experienceMemory.get(), iters);
+        startExperienceThread(agent, experienceMemory.get(), experienceGenerator.get(), iters);
+    std::thread learnThread = startLearnThread(agent, experienceMemory.get(), iters);
 
     playoutThread.join();
     learnThread.join();
-
-    return move(agent);
   }
 
   std::thread startExperienceThread(LearningAgent *agent, ExperienceMemory *memory,
@@ -83,7 +79,10 @@ struct Trainer::TrainerImpl {
 
       for (unsigned i = 0; i < iters; i++) {
         agent->Learn(memory->Sample(EXPERIENCE_BATCH_SIZE, EXPERIENCE_MAX_TRACE_LENGTH));
-        cout << "learn: " << i << endl;
+
+        if (i % 1000 == 0) {
+          cout << "learn: " << ((100 * i) / iters) << "%" << endl;
+        }
         this->numLearnIters++;
       }
 
@@ -95,4 +94,6 @@ struct Trainer::TrainerImpl {
 Trainer::Trainer() : impl(new TrainerImpl()) {}
 Trainer::~Trainer() = default;
 
-uptr<LearningAgent> Trainer::TrainAgent(unsigned iters) { return impl->TrainAgent(iters); }
+void Trainer::TrainAgent(LearningAgent *agent, unsigned iters) {
+  return impl->TrainAgent(agent, iters);
+}
