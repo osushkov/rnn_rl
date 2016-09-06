@@ -16,7 +16,7 @@ public:
   ExperienceGenerator(ExperienceGenerator &&other) = delete;
   ExperienceGenerator &operator=(const ExperienceGenerator &other) = delete;
 
-  vector<ExperienceMoment> GenerateTrace(Agent *agent);
+  Experience GenerateExperience(Agent *agent);
 
 private:
   struct ExperienceGeneratorImpl;

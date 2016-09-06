@@ -20,7 +20,6 @@ static constexpr float HINGE_ANGLE_THRESHOLD = 60.0f * M_PI / 180.0f;
 static constexpr float PENALTY = -1.0f;
 
 static constexpr float PENDULUM_WIND_STDDEV = 1.0f;
-
 static constexpr unsigned MAX_TRACE_LENGTH = 50;
 
 struct ExperienceGenerator::ExperienceGeneratorImpl {
@@ -30,13 +29,14 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
   ExperienceGeneratorImpl()
       : world(new PhysicsWorld()), cart(new Cart(CART_SPEC, world->GetWorld())) {}
 
-  vector<ExperienceMoment> GenerateTrace(Agent *agent) {
+  Experience GenerateExperience(Agent *agent) {
     assert(agent != nullptr);
 
-    vector<ExperienceMoment> result;
-    result.reserve(MAX_TRACE_LENGTH);
+    Experience result;
+    result.moments.reserve(MAX_TRACE_LENGTH);
 
     cart->Reset(0.0f);
+    agent->ResetMemory();
     for (unsigned i = 0; i < MAX_TRACE_LENGTH; i++) {
       State observedState(cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY());
       Action performedAction = agent->SelectAction(&observedState);
@@ -51,7 +51,7 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
       bool thresholdExceeded = fabsf(cart->GetHingeAngle()) > HINGE_ANGLE_THRESHOLD;
       float reward = thresholdExceeded ? PENALTY : 0.0f;
 
-      result.emplace_back(observedState.Encode(), performedAction, reward);
+      result.moments.emplace_back(observedState.Encode(), performedAction, reward);
       if (thresholdExceeded) {
         break;
       }
@@ -67,6 +67,6 @@ ExperienceGenerator::ExperienceGenerator() : impl(new ExperienceGeneratorImpl())
 
 ExperienceGenerator::~ExperienceGenerator() = default;
 
-vector<ExperienceMoment> ExperienceGenerator::GenerateTrace(Agent *agent) {
-  return impl->GenerateTrace(agent);
+Experience ExperienceGenerator::GenerateExperience(Agent *agent) {
+  return impl->GenerateExperience(agent);
 }

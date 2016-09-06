@@ -39,7 +39,7 @@ void ExperienceMemory::AddExperiences(const vector<Experience> &moments) {
   }
 }
 
-vector<Experience> ExperienceMemory::Sample(unsigned numSamples) const {
+vector<Experience> ExperienceMemory::Sample(unsigned numSamples, unsigned experienceLength) const {
   // obtain a read lock
   boost::shared_lock<boost::shared_mutex> lock(smutex);
 
@@ -47,7 +47,7 @@ vector<Experience> ExperienceMemory::Sample(unsigned numSamples) const {
   result.reserve(numSamples);
 
   for (unsigned i = 0; i < numSamples; i++) {
-    result.push_back(pastExperiences[wrappedIndex(rand())]);
+    result.push_back(trimmed(pastExperiences[wrappedIndex(rand())], experienceLength));
   }
 
   return result;
@@ -67,4 +67,17 @@ void ExperienceMemory::purgeOldMemories(void) {
   unsigned purgeAmount = PURGE_RATIO * occupancy;
   occupancy -= purgeAmount;
   head = (head + purgeAmount) % pastExperiences.size();
+}
+
+Experience ExperienceMemory::trimmed(const Experience &experience, unsigned targetLength) const {
+  if (experience.moments.size() <= targetLength) {
+    return experience;
+  }
+
+  Experience result;
+  unsigned startIndex = rand() % (experience.moments.size() - targetLength);
+  for (unsigned i = 0; i < targetLength; i++) {
+    result.moments.push_back(experience.moments[startIndex + i]);
+  }
+  return result;
 }

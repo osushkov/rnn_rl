@@ -29,11 +29,13 @@ public:
   void AddExperience(const Experience &moment);
   void AddExperiences(const vector<Experience> &moments);
 
-  vector<Experience> Sample(unsigned numSamples) const;
+  vector<Experience> Sample(unsigned numSamples, unsigned experienceLength) const;
   unsigned NumMemories(void) const;
 
 private:
   unsigned wrappedIndex(unsigned i) const;
   void purgeOldMemories(void);
+
+  Experience trimmed(const Experience &experience, unsigned targetLength) const;
 };
 }
