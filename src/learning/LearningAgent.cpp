@@ -111,8 +111,8 @@ struct LearningAgent::LearningAgentImpl {
     // TODO: this could probably be just a "static" slice batch vector that is kept and reset
     // between Learn calls.
     for (unsigned i = 0; i < experiences.front().moments.size(); i++) {
-      trainInput.emplace_back(EMatrix(rnnSpec.numInputs, experiences.size()),
-          EMatrix(rnnSpec.numOutputs, experiences.size()), EMatrix(1, experiences.size()));
+      trainInput.emplace_back(EMatrix(experiences.size(), rnnSpec.numInputs),
+          EMatrix(experiences.size(), rnnSpec.numOutputs), EMatrix(experiences.size(), 1));
 
       trainInput.back().batchInput.fill(0.0f);
       trainInput.back().batchActions.fill(0.0f);
@@ -125,9 +125,9 @@ struct LearningAgent::LearningAgentImpl {
       for (unsigned j = 0; j < experiences[i].moments.size(); j++) {
         unsigned actionIndex = Action::ACTION_INDEX(experiences[i].moments[j].actionTaken);
 
-        trainInput[j].batchInput.col(i) = experiences[i].moments[j].observedState;
-        trainInput[j].batchActions(actionIndex, i) = 1.0f;
-        trainInput[j].batchRewards(0, i) = experiences[i].moments[j].reward;
+        trainInput[j].batchInput.row(i) = experiences[i].moments[j].observedState.transpose();
+        trainInput[j].batchActions(i, actionIndex) = 1.0f;
+        trainInput[j].batchRewards(i, 0) = experiences[i].moments[j].reward;
       }
     }
 

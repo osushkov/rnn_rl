@@ -13,12 +13,11 @@ struct ConnectionMemoryData {
   LayerConnection connection;
   bool haveActivation;
 
-  EMatrix activation; // batch output, column per batch element.
-  EMatrix derivative;
+  EVector activation; // batch output, column per batch element.
+  EVector derivative;
 
-  ConnectionMemoryData(const LayerConnection &connection, int rows, int cols)
-      : connection(connection), haveActivation(false), activation(rows, cols),
-        derivative(rows, cols) {
+  ConnectionMemoryData(const LayerConnection &connection, int rows)
+      : connection(connection), haveActivation(false), activation(rows), derivative(rows) {
     activation.fill(0.0f);
     derivative.fill(0.0f);
   }
@@ -26,17 +25,17 @@ struct ConnectionMemoryData {
 
 struct TimeSlice {
   int timestamp;
-  EMatrix networkInput;
-  EMatrix networkOutput;
+  EVector networkInput;
+  EVector networkOutput;
   vector<ConnectionMemoryData> connectionData;
 
-  TimeSlice(int timestamp, const EMatrix &networkInput, const vector<Layer> &layers)
+  TimeSlice(int timestamp, const EVector &networkInput, const vector<Layer> &layers)
       : timestamp(timestamp), networkInput(networkInput) {
     assert(networkInput.cols() > 0);
 
     for (const auto &layer : layers) {
       for (const auto &c : layer.outgoing) {
-        connectionData.push_back(ConnectionMemoryData(c, layer.numNodes, networkInput.cols()));
+        connectionData.push_back(ConnectionMemoryData(c, layer.numNodes));
       }
     }
   }

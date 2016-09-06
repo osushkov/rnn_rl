@@ -5,7 +5,7 @@
 namespace rnn {
 
 struct SliceBatch {
-  EMatrix batchInput;
+  EMatrix batchInput; // row-vectors, one per batch element.
   EMatrix batchActions; // one hot encoding
   EMatrix batchRewards;
 

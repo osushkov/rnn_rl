@@ -29,14 +29,13 @@ struct RNN::RNNImpl {
 
   void ClearMemory(void) { previous = Maybe<TimeSlice>::none; }
 
-  EMatrix Process(const EMatrix &input) {
+  EVector Process(const EVector &input) {
     assert(input.rows() == spec.numInputs);
-    assert(input.cols() > 0);
 
     TimeSlice *prevSlice = previous.valid() ? &(previous.val()) : nullptr;
     TimeSlice curSlice(0, input, layers);
 
-    EMatrix output = forwardPass(prevSlice, curSlice);
+    EVector output = forwardPass(prevSlice, curSlice);
     previous = Maybe<TimeSlice>(curSlice);
     return output;
   }
@@ -59,9 +58,9 @@ struct RNN::RNNImpl {
     return weights;
   }
 
-  EMatrix forwardPass(const TimeSlice *prevSlice, TimeSlice &curSlice) {
+  EVector forwardPass(const TimeSlice *prevSlice, TimeSlice &curSlice) {
     for (const auto &layer : layers) {
-      pair<EMatrix, EMatrix> layerOut = getLayerOutput(layer, prevSlice, curSlice);
+      pair<EVector, EVector> layerOut = getLayerOutput(layer, prevSlice, curSlice);
 
       for (const auto &oc : layer.outgoing) {
         ConnectionMemoryData *cmd = curSlice.GetConnectionData(oc);
@@ -86,9 +85,9 @@ struct RNN::RNNImpl {
   }
 
   // Returns the output vector of the layer, and the derivative vector for the layer.
-  pair<EMatrix, EMatrix> getLayerOutput(const Layer &layer, const TimeSlice *prevSlice,
+  pair<EVector, EVector> getLayerOutput(const Layer &layer, const TimeSlice *prevSlice,
                                         const TimeSlice &curSlice) {
-    EMatrix incoming(layer.numNodes, curSlice.networkInput.cols());
+    EVector incoming(layer.numNodes);
     incoming.fill(0.0f);
 
     for (const auto &connection : layer.weights) {
@@ -100,7 +99,7 @@ struct RNN::RNNImpl {
 
   void incrementIncomingWithConnection(const pair<LayerConnection, EMatrix> &connection,
                                        const TimeSlice *prevSlice, const TimeSlice &curSlice,
-                                       EMatrix &incoming) {
+                                       EVector &incoming) {
 
     if (connection.first.srcLayerId == 0) { // special case for input
       assert(connection.first.timeOffset == 0);
@@ -123,29 +122,25 @@ struct RNN::RNNImpl {
     }
   }
 
-  pair<EMatrix, EMatrix> performLayerActivations(const Layer &layer, const EMatrix &incoming) {
-    EMatrix activation(incoming.rows(), incoming.cols());
-    EMatrix derivatives(incoming.rows(), incoming.cols());
+  pair<EVector, EVector> performLayerActivations(const Layer &layer, const EVector &incoming) {
+    EVector activation(incoming.rows());
+    EVector derivatives(incoming.rows());
 
     if (layer.isOutput && spec.outputActivation == LayerActivation::SOFTMAX) {
-      for (int c = 0; c < activation.cols(); c++) {
-        activation.col(c) = math::SoftmaxActivations(incoming.col(c));
-      }
+      activation = math::SoftmaxActivations(incoming);
     } else {
-      for (int c = 0; c < activation.cols(); c++) {
-        for (int r = 0; r < activation.rows(); r++) {
-          activation(r, c) = ActivationValue(spec.hiddenActivation, incoming(r, c));
-          derivatives(r, c) =
-              ActivationDerivative(spec.hiddenActivation, incoming(r, c), activation(r, c));
-        }
+      for (int r = 0; r < activation.rows(); r++) {
+        activation(r) = ActivationValue(spec.hiddenActivation, incoming(r));
+        derivatives(r) =
+            ActivationDerivative(spec.hiddenActivation, incoming(r), activation(r));
       }
     }
 
     return make_pair(activation, derivatives);
   }
 
-  EMatrix getInputWithBias(const EMatrix &noBiasInput) const {
-    EMatrix result(noBiasInput.rows() + 1, noBiasInput.cols());
+  EVector getInputWithBias(const EVector &noBiasInput) const {
+    EVector result(noBiasInput.rows() + 1);
     result.topRightCorner(noBiasInput.rows(), result.cols()) = noBiasInput;
     result.bottomRightCorner(1, result.cols()).fill(1.0f);
     return result;
@@ -161,7 +156,7 @@ RNNSpec RNN::GetSpec(void) const {
 
 void RNN::ClearMemory(void) { impl->ClearMemory(); }
 
-EMatrix RNN::Process(const EMatrix &input) { return impl->Process(input); }
+EVector RNN::Process(const EVector &input) { return impl->Process(input); }
 
 void RNN::Update(const vector<SliceBatch> &trace) { impl->Update(trace); }
 

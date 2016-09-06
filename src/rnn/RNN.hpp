@@ -19,7 +19,7 @@ public:
   RNNSpec GetSpec(void) const;
 
   void ClearMemory(void);
-  EMatrix Process(const EMatrix &input);
+  EVector Process(const EVector &input);
 
   void Update(const vector<SliceBatch> &trace);
   void RefreshAndGetTarget(void);
