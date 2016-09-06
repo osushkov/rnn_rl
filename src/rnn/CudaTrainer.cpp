@@ -243,8 +243,6 @@ struct CudaTrainer::CudaTrainerImpl {
 
   void pushTraceToStaging(const vector<SliceBatch> &trace) {
     for (unsigned i = 0; i < trace.size(); i++) {
-      cout << trace[i].batchInput.cols() << " " << inputOutputStaging[i].input.cols << endl;
-
       assert(trace[i].batchInput.cols() == inputOutputStaging[i].input.cols);
       assert(trace[i].batchInput.rows() <= inputOutputStaging[i].input.rows);
       assert(trace[i].batchActions.cols() == inputOutputStaging[i].actions.cols);

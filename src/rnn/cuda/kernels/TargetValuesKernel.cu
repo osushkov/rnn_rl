@@ -31,7 +31,7 @@ void targetValuesKernel(CuMatrix nextTargetActivation, CuMatrix batchRewards,
 void TargetValuesKernel::Apply(CuMatrix nextTargetActivation, CuMatrix batchRewards,
                                float discountFactor, CuMatrix outTargetValue, cudaStream_t stream) {
 
-  assert(nextTargetActivation.cols == outTargetValue.cols);
+  assert(nextTargetActivation.cols == outTargetValue.cols + 1);
   assert(nextTargetActivation.rows == outTargetValue.rows);
   assert(batchRewards.cols == 1);
   assert(batchRewards.rows == outTargetValue.rows);
