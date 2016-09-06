@@ -38,7 +38,7 @@ struct Trainer::TrainerImpl {
     uptr<LearningAgent> agent = make_unique<LearningAgent>();
 
     std::thread playoutThread =
-        startPlayoutThread(agent.get(), experienceMemory.get(), experienceGenerator.get(), iters);
+        startExperienceThread(agent.get(), experienceMemory.get(), experienceGenerator.get(), iters);
     std::thread learnThread = startLearnThread(agent.get(), experienceMemory.get(), iters);
 
     playoutThread.join();
@@ -47,8 +47,8 @@ struct Trainer::TrainerImpl {
     return move(agent);
   }
 
-  std::thread startPlayoutThread(LearningAgent *agent, ExperienceMemory *memory,
-                                 ExperienceGenerator *generator, unsigned iters) {
+  std::thread startExperienceThread(LearningAgent *agent, ExperienceMemory *memory,
+                                    ExperienceGenerator *generator, unsigned iters) {
 
     return std::thread([this, agent, memory, generator, iters]() {
       float pRandDecay = powf(TARGET_PRANDOM / INITIAL_PRANDOM, 1.0f / iters);
@@ -70,18 +70,20 @@ struct Trainer::TrainerImpl {
         agent->SetTemperature(temp);
 
         memory->AddExperience(generator->GenerateExperience(agent));
+        // cout << "experiences generated: " << memory->NumMemories() << endl;
       }
     });
   }
 
   std::thread startLearnThread(LearningAgent *agent, ExperienceMemory *memory, unsigned iters) {
     return std::thread([this, agent, memory, iters]() {
-      while (memory->NumMemories() < 10 * EXPERIENCE_BATCH_SIZE) {
+      while (memory->NumMemories() < 5 * EXPERIENCE_BATCH_SIZE) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
 
       for (unsigned i = 0; i < iters; i++) {
         agent->Learn(memory->Sample(EXPERIENCE_BATCH_SIZE, EXPERIENCE_MAX_TRACE_LENGTH));
+        cout << "learn: " << i << endl;
         this->numLearnIters++;
       }
 

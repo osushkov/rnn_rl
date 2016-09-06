@@ -1,7 +1,10 @@
 
+#include "common/Common.hpp"
 #include "renderer/SFMLRenderer.hpp"
 #include "simulation/Cart.hpp"
 #include "simulation/PhysicsWorld.hpp"
+#include "learning/Trainer.hpp"
+#include "learning/LearningAgent.hpp"
 #include <SFML/Graphics.hpp>
 #include <iostream>
 
@@ -11,6 +14,10 @@ using namespace renderer;
 int main(int argc, char **argv) {
   std::cout << "hello world" << std::endl;
 
+  learning::Trainer trainer;
+  uptr<learning::LearningAgent> agent = trainer.TrainAgent(1000);
+
+/*
   PhysicsWorld world;
   Cart cart(CartSpec(5.0f, 1.0f, 1.0f), world.GetWorld());
   cart.Reset(0.0f);
@@ -31,7 +38,7 @@ int main(int argc, char **argv) {
     cout << "step: " << i << endl;
     getchar();
   }
-
+*/
   // sf::RenderWindow window(sf::VideoMode(300, 300), "SFML works!");
   // sf::CircleShape shape(100.0f);
   // shape.setPosition(50.0f, 100.0f);

@@ -11,14 +11,13 @@ class Action {
   float pushImpulse;
 
 public:
-  // Returns a vector of all possible actions in the game.
-  static const std::vector<unsigned> &ALL_ACTIONS(void);
+  static unsigned NUM_ACTIONS(void);
 
   static Action ACTION(unsigned index);
   static unsigned ACTION_INDEX(const Action &ga);
 
   Action() = default; // useful to have a no args constructor
-  Action(float pushImpulse) : pushImpulse(pushImpulse) {}
+  explicit Action(float pushImpulse) : pushImpulse(pushImpulse) {}
 
   inline float GetImpulse(void) const { return pushImpulse; }
 

@@ -40,7 +40,13 @@ float State::GetPendulumXPos(void) const { return pendulumXPos; }
 
 float State::GetPendulumYPos(void) const { return pendulumYPos; }
 
-vector<unsigned> State::AvailableActions(void) const { return Action::ALL_ACTIONS(); }
+vector<unsigned> State::AvailableActions(void) const {
+  vector<unsigned> result(Action::NUM_ACTIONS());
+  for (unsigned i = 0; i < result.size(); i++) {
+    result[i] = i;
+  }
+  return result;
+}
 
 EVector State::Encode(void) const {
   EVector result(3);

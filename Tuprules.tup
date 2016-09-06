@@ -26,3 +26,4 @@ CLFLAGS += -lsfml-graphics -lsfml-window -lsfml-system -lBulletCollision -lBulle
 CLFLAGS += -pthread
 CLFLAGS += -std=c++11
 CLFLAGS += -Wl,--no-as-needed
+CLFLAGS += -lboost_system -lboost_thread

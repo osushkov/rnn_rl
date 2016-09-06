@@ -1,5 +1,6 @@
 
 #include "ExperienceGenerator.hpp"
+#include "Constants.hpp"
 #include "../simulation/Action.hpp"
 #include "../simulation/Cart.hpp"
 #include "../simulation/PhysicsWorld.hpp"
@@ -8,19 +9,12 @@
 using namespace learning;
 using namespace simulation;
 
-static constexpr float CART_WEIGHT_KG = 10.0f;
-static constexpr float PENDULUM_LENGTH = 50.0f;
-static constexpr float PENDULUM_WEIGHT_KG = 2.0f;
 static const CartSpec CART_SPEC(CART_WEIGHT_KG, PENDULUM_LENGTH, PENDULUM_WEIGHT_KG);
 
-static constexpr float STEP_LENGTH_SECS = 1.0f / 30.0f;
-static constexpr unsigned STEPS_PER_ACTION = 30;
-
-static constexpr float HINGE_ANGLE_THRESHOLD = 60.0f * M_PI / 180.0f;
-static constexpr float PENALTY = -1.0f;
-
-static constexpr float PENDULUM_WIND_STDDEV = 1.0f;
-static constexpr unsigned MAX_TRACE_LENGTH = 50;
+static constexpr float STEP_LENGTH_SECS = 1.0f / 10.0f;
+static constexpr unsigned STEPS_PER_ACTION = 10; // Agent gets to perform an action once a second.
+static constexpr unsigned MAX_TRACE_LENGTH = 20;
+static constexpr unsigned MIN_TRACE_LENGTH = 10;
 
 struct ExperienceGenerator::ExperienceGeneratorImpl {
   uptr<PhysicsWorld> world;
@@ -49,10 +43,14 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
       }
 
       bool thresholdExceeded = fabsf(cart->GetHingeAngle()) > HINGE_ANGLE_THRESHOLD;
+      // cout << observedState << endl << performedAction << endl;
+      // cout << thresholdExceeded << endl;
       float reward = thresholdExceeded ? PENALTY : 0.0f;
+      // cout << "reward: " << reward << endl;
 
       result.moments.emplace_back(observedState.Encode(), performedAction, reward);
-      if (thresholdExceeded) {
+
+      if (thresholdExceeded && i >= MIN_TRACE_LENGTH) {
         break;
       }
     }

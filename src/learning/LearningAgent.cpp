@@ -29,7 +29,7 @@ struct LearningAgent::LearningAgentImpl {
     rnn::RNNSpec spec;
 
     spec.numInputs = 3;
-    spec.numOutputs = Action::ALL_ACTIONS().size();
+    spec.numOutputs = Action::NUM_ACTIONS();
     spec.hiddenActivation = rnn::LayerActivation::TANH;
     spec.outputActivation = rnn::LayerActivation::TANH;
     spec.nodeActivationRate = 1.0f;
@@ -48,8 +48,8 @@ struct LearningAgent::LearningAgentImpl {
     spec.connections.emplace_back(2, 2, 1);
 
     // 2 layers, 1 hidden.
-    spec.layers.emplace_back(1, 64, false);
-    spec.layers.emplace_back(2, 64, false);
+    spec.layers.emplace_back(1, 32, false);
+    spec.layers.emplace_back(2, 32, false);
     spec.layers.emplace_back(3, spec.numOutputs, true);
 
     network = make_unique<rnn::RNN>(spec);
@@ -142,7 +142,7 @@ struct LearningAgent::LearningAgentImpl {
 
   Action chooseBestAction(const State *state) {
     EMatrix qvalues = network->Process(state->Encode());
-    assert(qvalues.rows() == static_cast<int>(Action::ALL_ACTIONS().size()));
+    assert(qvalues.rows() == static_cast<int>(Action::NUM_ACTIONS()));
     assert(qvalues.cols() == 1);
 
     std::vector<unsigned> availableActions = state->AvailableActions();
