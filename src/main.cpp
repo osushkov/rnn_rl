@@ -16,14 +16,14 @@ using namespace renderer;
 int main(int argc, char **argv) {
   std::cout << "hello world" << std::endl;
 
-  // uptr<learning::Agent> randomAgent = make_unique<learning::RandomAgent>();
-  // cout << "random agent: " << Evaluator::Evaluate(randomAgent.get()) << endl;
+  uptr<learning::Agent> randomAgent = make_unique<learning::RandomAgent>();
+  cout << "random agent: " << Evaluator::Evaluate(randomAgent.get()) << endl;
 
   uptr<learning::LearningAgent> learningAgent = make_unique<learning::LearningAgent>();
-  // cout << "learning agent start: " << Evaluator::Evaluate(learningAgent.get()) << endl;
+  cout << "learning agent start: " << Evaluator::Evaluate(learningAgent.get()) << endl;
 
   learning::Trainer trainer;
-  trainer.TrainAgent(learningAgent.get(), 50000);
+  trainer.TrainAgent(learningAgent.get(), 1000000);
 
   cout << "learning agent end: " << Evaluator::Evaluate(learningAgent.get()) << endl;
   /*

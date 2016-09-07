@@ -59,7 +59,7 @@ struct LearningAgent::LearningAgentImpl {
     assert(state != nullptr);
 
     boost::shared_lock<boost::shared_mutex> lock(rwMutex);
-    return chooseBestAction(state, true);
+    return chooseBestAction(state, false);
   }
 
   void ResetMemory(void) {
@@ -112,7 +112,8 @@ struct LearningAgent::LearningAgentImpl {
     // between Learn calls.
     for (unsigned i = 0; i < experiences.front().moments.size(); i++) {
       trainInput.emplace_back(EMatrix(experiences.size(), rnnSpec.numInputs),
-          EMatrix(experiences.size(), rnnSpec.numOutputs), EMatrix(experiences.size(), 1));
+                              EMatrix(experiences.size(), rnnSpec.numOutputs),
+                              EMatrix(experiences.size(), 1));
 
       trainInput.back().batchInput.fill(0.0f);
       trainInput.back().batchActions.fill(0.0f);
@@ -204,8 +205,6 @@ Action LearningAgent::SelectLearningAction(const State *state) {
   return impl->SelectLearningAction(state);
 }
 
-void LearningAgent::Learn(const vector<Experience> &experiences) {
-  impl->Learn(experiences);
-}
+void LearningAgent::Learn(const vector<Experience> &experiences) { impl->Learn(experiences); }
 
 void LearningAgent::Finalise(void) { impl->Finalise(); }

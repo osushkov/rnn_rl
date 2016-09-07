@@ -4,8 +4,8 @@
 namespace learning {
 
 static constexpr unsigned EXPERIENCE_BATCH_SIZE = 64;
-static constexpr unsigned EXPERIENCE_MAX_TRACE_LENGTH = 6;
-static constexpr unsigned TARGET_FUNCTION_UPDATE_RATE = 5000;
+static constexpr unsigned EXPERIENCE_MAX_TRACE_LENGTH = 12;
+static constexpr unsigned TARGET_FUNCTION_UPDATE_RATE = 10000;
 static constexpr float REWARD_DELAY_DISCOUNT = 0.9f;
 
 static constexpr float CART_WEIGHT_KG = 10.0f;
