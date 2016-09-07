@@ -12,9 +12,9 @@ using namespace simulation;
 static const CartSpec CART_SPEC(CART_WEIGHT_KG, PENDULUM_LENGTH, PENDULUM_WEIGHT_KG);
 
 static constexpr float STEP_LENGTH_SECS = 1.0f / 10.0f;
-static constexpr unsigned STEPS_PER_ACTION = 10; // Agent gets to perform an action once a second.
-static constexpr unsigned MAX_TRACE_LENGTH = 20;
-static constexpr unsigned MIN_TRACE_LENGTH = 10;
+static constexpr unsigned STEPS_PER_ACTION = 5; // Agent gets to perform an action once a second.
+static constexpr unsigned MAX_TRACE_LENGTH = 30;
+static constexpr unsigned MIN_TRACE_LENGTH = 15;
 
 struct ExperienceGenerator::ExperienceGeneratorImpl {
   uptr<PhysicsWorld> world;
@@ -23,7 +23,7 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
   ExperienceGeneratorImpl()
       : world(new PhysicsWorld()), cart(new Cart(CART_SPEC, world->GetWorld())) {}
 
-  Experience GenerateExperience(Agent *agent) {
+  Experience GenerateExperience(LearningAgent *agent) {
     assert(agent != nullptr);
 
     Experience result;
@@ -32,13 +32,14 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
     cart->Reset(0.0f);
     agent->ResetMemory();
     for (unsigned i = 0; i < MAX_TRACE_LENGTH; i++) {
-      State observedState(cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY());
-      Action performedAction = agent->SelectAction(&observedState);
+      State observedState(
+          cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY(), cart->GetHingeAngle());
+      Action performedAction = agent->SelectLearningAction(&observedState);
 
       cart->ApplyCartImpulse(performedAction.GetImpulse());
+      cart->ApplyPendulumImpulse(getRandomPendulumImpulse());
 
       for (unsigned j = 0; j < STEPS_PER_ACTION; j++) {
-        cart->ApplyPendulumImpulse(getRandomPendulumImpulse());
         world->Step(STEP_LENGTH_SECS);
       }
 
@@ -65,6 +66,6 @@ ExperienceGenerator::ExperienceGenerator() : impl(new ExperienceGeneratorImpl())
 
 ExperienceGenerator::~ExperienceGenerator() = default;
 
-Experience ExperienceGenerator::GenerateExperience(Agent *agent) {
+Experience ExperienceGenerator::GenerateExperience(LearningAgent *agent) {
   return impl->GenerateExperience(agent);
 }

@@ -8,7 +8,7 @@ using namespace simulation;
 static std::once_flag stateFlag;
 static std::vector<Action> actionSet;
 
-static const std::vector<float> impulses{25.0f, 50.0f, 100.0f};
+static const std::vector<float> impulses{10.0f, 20.0f};
 
 static void initialiseActions(void) {
   actionSet.emplace_back(0.0f);

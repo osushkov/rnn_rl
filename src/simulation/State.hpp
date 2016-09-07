@@ -14,19 +14,18 @@ class State {
   float cartXPos;
   float pendulumXPos;
   float pendulumYPos;
+  float hingeAngle;
 
 public:
   State();
-  State(float cartXPos, float pendulumXPos, float pendulumYPos);
-  State(const State &other);
+  State(float cartXPos, float pendulumXPos, float pendulumYPos, float hingeAngle);
 
-  State &operator=(const State &other);
   bool operator==(const State &other) const;
-  size_t HashCode() const;
 
   float GetCartXPos(void) const;
   float GetPendulumXPos(void) const;
   float GetPendulumYPos(void) const;
+  float GetHingeAngle(void) const;
 
   // Returns indices into the GameAction::ALL_ACTIONS vector.
   vector<unsigned> AvailableActions(void) const;

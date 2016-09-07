@@ -88,9 +88,9 @@ struct CudaTrainer::CudaTrainerImpl {
   Semaphore taskSem;
 
   vector<TrainTask> taskList = {
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CALCULATE_TARGETS,
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::FORWARDPROP,
-      TrainTask::CLEAR_BACKPROP_BUFFERS,       TrainTask::BACKPROP_DELTA,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CLEAR_BACKPROP_BUFFERS, TrainTask::CALCULATE_TARGETS,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CLEAR_BACKPROP_BUFFERS, TrainTask::FORWARDPROP,
+      TrainTask::BACKPROP_DELTA,
       TrainTask::COMPUTE_AND_UPDATE_GRADIENTS,
   };
 
@@ -213,6 +213,13 @@ struct CudaTrainer::CudaTrainerImpl {
     assert(trace.size() <= maxTraceLength);
     assert(!trace.empty());
 
+    // for (const auto& t : trace) {
+    //   cout << "input: " << t.batchInput << endl;
+    //   cout << "actions: " << t.batchActions << endl;
+    //   cout << "rewards: " << t.batchRewards << endl << endl;
+    // }
+    // getchar();
+
     {
       std::lock_guard<std::mutex> lk(m);
       curBatchSize = trace.front().batchInput.rows();
@@ -324,7 +331,7 @@ struct CudaTrainer::CudaTrainerImpl {
       if (ts != nullptr) {
         ts->networkOutput.haveActivation = false;
         executor.Execute(Task::FillMatrix(ts->networkOutput.activation, 0.0f));
-        // executor.Execute(Task::FillMatrix(ts->networkOutput.derivative, 0.0f));
+        executor.Execute(Task::FillMatrix(ts->networkOutput.derivative, 0.0f));
 
         for (auto &cd : ts->connectionData) {
           cd.haveActivation = false;
@@ -387,14 +394,20 @@ struct CudaTrainer::CudaTrainerImpl {
       assert(ts->networkOutput.haveActivation);
     }
 
-    for (int i = 0; i < static_cast<int>(curTraceLength) - 1; i++) {
+    for (int i = 0; i < static_cast<int>(curTraceLength); i++) {
       CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
       CuTimeSlice *nextSlice = layerMemory.GetTimeSlice(i + 1);
-      assert(ts != nullptr && nextSlice != nullptr);
+      assert(ts != nullptr);
 
       traceTargets[i].batchSize = curBatchSize;
-      executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards, 0.99f,
-                                           traceTargets[i].value));
+
+      if (nextSlice == nullptr) {
+        executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->rewards,
+                                             0.9f, true, traceTargets[i].value));
+      } else {
+        executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards,
+                                             0.9f, false, traceTargets[i].value));
+      }
     }
   }
 
@@ -430,7 +443,7 @@ struct CudaTrainer::CudaTrainerImpl {
       return;
     }
 
-    for (int i = static_cast<int>(curTraceLength) - 2; i >= 0; i--) {
+    for (int i = static_cast<int>(curTraceLength) - 1; i >= 0; i--) {
       backProp(executor, i);
     }
   }

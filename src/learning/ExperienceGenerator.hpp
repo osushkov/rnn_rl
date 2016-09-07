@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../common/Common.hpp"
-#include "Agent.hpp"
+#include "LearningAgent.hpp"
 #include "Experience.hpp"
 #include <vector>
 
@@ -16,7 +16,7 @@ public:
   ExperienceGenerator(ExperienceGenerator &&other) = delete;
   ExperienceGenerator &operator=(const ExperienceGenerator &other) = delete;
 
-  Experience GenerateExperience(Agent *agent);
+  Experience GenerateExperience(LearningAgent *agent);
 
 private:
   struct ExperienceGeneratorImpl;

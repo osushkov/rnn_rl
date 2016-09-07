@@ -4,6 +4,7 @@
 #include "../Types.cuh"
 #include <cuda_runtime.h>
 #include <cassert>
+#include <cstdio>
 
 using namespace rnn;
 using namespace rnn::cuda;
@@ -20,8 +21,10 @@ void errorMeasureKernel(ConnectionActivation nnOut, TargetOutput target, CuMatri
   }
 
   float mask = *Elem(deltaMask, row, col);
+  float derivative = 1.0f;//*Elem(nnOut.derivative, row, col);
   *Elem(out.delta, row, col) =
-      mask * (*Elem(nnOut.activation, row, col) - *Elem(target.value, row, col));
+      mask * derivative * (*Elem(nnOut.activation, row, col) - *Elem(target.value, row, col));
+  // printf("%d delta: %f ** %f\n", col, *Elem(out.delta, row, col), *Elem(target.value, row, col));
 }
 
 void ErrorMeasureKernel::Apply(ConnectionActivation networkOutput, TargetOutput targetOutput,
@@ -37,4 +40,5 @@ void ErrorMeasureKernel::Apply(ConnectionActivation networkOutput, TargetOutput 
 
   errorMeasureKernel<<<dim3(bpgX, bpgY, 1), dim3(TPB_X, TPB_Y, 1), 0, stream>>>(
       networkOutput, targetOutput, deltaMask, out);
+      // getchar();
 }

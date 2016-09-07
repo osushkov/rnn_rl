@@ -3,10 +3,10 @@
 
 namespace learning {
 
-static constexpr unsigned EXPERIENCE_BATCH_SIZE = 100;
-static constexpr unsigned EXPERIENCE_MAX_TRACE_LENGTH = 3;
-static constexpr unsigned TARGET_FUNCTION_UPDATE_RATE = 5000;
-static constexpr float REWARD_DELAY_DISCOUNT = 0.99f;
+static constexpr unsigned EXPERIENCE_BATCH_SIZE = 64;
+static constexpr unsigned EXPERIENCE_MAX_TRACE_LENGTH = 6;
+static constexpr unsigned TARGET_FUNCTION_UPDATE_RATE = 2000;
+static constexpr float REWARD_DELAY_DISCOUNT = 0.9f;
 
 static constexpr float CART_WEIGHT_KG = 10.0f;
 static constexpr float PENDULUM_LENGTH = 50.0f;

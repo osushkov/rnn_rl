@@ -8,7 +8,7 @@ namespace cuda {
 namespace TargetValuesKernel {
 
 void Apply(CuMatrix nextTargetActivation, CuMatrix batchRewards, float discountFactor,
-           CuMatrix outTargetValue, cudaStream_t stream);
+           bool useOnlyReward, CuMatrix outTargetValue, cudaStream_t stream);
 }
 }
 }

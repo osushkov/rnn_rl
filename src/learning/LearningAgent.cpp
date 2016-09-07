@@ -28,7 +28,7 @@ struct LearningAgent::LearningAgentImpl {
   void createNetwork(void) {
     rnn::RNNSpec spec;
 
-    spec.numInputs = 3;
+    spec.numInputs = 2;
     spec.numOutputs = Action::NUM_ACTIONS();
     spec.hiddenActivation = rnn::LayerActivation::TANH;
     spec.outputActivation = rnn::LayerActivation::TANH;
@@ -59,7 +59,7 @@ struct LearningAgent::LearningAgentImpl {
     assert(state != nullptr);
 
     boost::shared_lock<boost::shared_mutex> lock(rwMutex);
-    return chooseBestAction(state);
+    return chooseBestAction(state, true);
   }
 
   void ResetMemory(void) {
@@ -85,7 +85,7 @@ struct LearningAgent::LearningAgentImpl {
       return chooseExplorativeAction(state);
     } else {
       // return chooseWeightedAction(state);
-      return chooseBestAction(state);
+      return chooseBestAction(state, false);
     }
   }
 
@@ -140,20 +140,25 @@ struct LearningAgent::LearningAgentImpl {
     network->RefreshAndGetTarget();
   }
 
-  Action chooseBestAction(const State *state) {
-    EMatrix qvalues = network->Process(state->Encode());
+  Action chooseBestAction(const State *state, bool print) {
+    EVector qvalues = network->Process(state->Encode());
     assert(qvalues.rows() == static_cast<int>(Action::NUM_ACTIONS()));
-    assert(qvalues.cols() == 1);
 
     std::vector<unsigned> availableActions = state->AvailableActions();
     assert(availableActions.size() > 0);
 
     unsigned bestActionIndex = availableActions[0];
-    float bestQValue = qvalues(availableActions[0], 0);
+    float bestQValue = qvalues(availableActions[0]);
 
+    if (print) {
+      cout << "q(0) = " << qvalues(availableActions[0]) << endl;
+    }
     for (unsigned i = 1; i < availableActions.size(); i++) {
+      if (print) {
+        cout << "q(" << i << ") = " << qvalues(availableActions[i]) << endl;
+      }
       if (qvalues(availableActions[i]) > bestQValue) {
-        bestQValue = qvalues(availableActions[i], 0);
+        bestQValue = qvalues(availableActions[i]);
         bestActionIndex = availableActions[i];
       }
     }

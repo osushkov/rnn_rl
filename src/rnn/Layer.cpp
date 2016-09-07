@@ -22,7 +22,7 @@ static unsigned numLayerOutputs(const RNNSpec &spec, unsigned layerId) {
 }
 
 static EMatrix createWeightsMatrix(unsigned inputSize, unsigned outputSize) {
-  float initRange = 1.0f / sqrtf(inputSize);
+  float initRange = 0.1f / sqrtf(inputSize);
 
   EMatrix result(outputSize, inputSize);
   result.fill(0.0f);

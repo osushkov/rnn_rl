@@ -116,13 +116,14 @@ struct TargetQValuesData {
   CuMatrix nextTargetActivation;
   CuMatrix batchRewards;
   float discountFactor;
+  bool useOnlyReward;
   CuMatrix outTargetValue;
 
   TargetQValuesData() = default;
   TargetQValuesData(CuMatrix nextTargetActivation, CuMatrix batchRewards, float discountFactor,
-                    CuMatrix outTargetValue)
+                    bool useOnlyReward, CuMatrix outTargetValue)
       : nextTargetActivation(nextTargetActivation), batchRewards(batchRewards),
-        discountFactor(discountFactor), outTargetValue(outTargetValue) {}
+        discountFactor(discountFactor), useOnlyReward(useOnlyReward), outTargetValue(outTargetValue) {}
 };
 
 struct AdamUpdateData {
@@ -282,11 +283,11 @@ struct Task {
   }
 
   static Task TargetQValues(CuMatrix nextTargetActivation, CuMatrix batchRewards,
-                            float discountFactor, CuMatrix outTargetValue) {
+                            float discountFactor, bool useOnlyReward, CuMatrix outTargetValue) {
     Task task;
     task.type = TaskType::TARGET_QVALUES;
     task.data.targetQValuesData =
-        TargetQValuesData(nextTargetActivation, batchRewards, discountFactor, outTargetValue);
+        TargetQValuesData(nextTargetActivation, batchRewards, discountFactor, useOnlyReward, outTargetValue);
     return task;
   }
 

@@ -19,10 +19,10 @@
 
 using namespace learning;
 
-static constexpr unsigned EXPERIENCE_MEMORY_SIZE = 1000000;
+static constexpr unsigned EXPERIENCE_MEMORY_SIZE = 10000;
 
-static constexpr float INITIAL_PRANDOM = 0.3f;
-static constexpr float TARGET_PRANDOM = 0.05f;
+static constexpr float INITIAL_PRANDOM = 0.5f;
+static constexpr float TARGET_PRANDOM = 0.1f;
 
 static constexpr float INITIAL_TEMPERATURE = 0.5f;
 static constexpr float TARGET_TEMPERATURE = 0.001f;
