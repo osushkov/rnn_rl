@@ -31,7 +31,7 @@ struct LearningAgent::LearningAgentImpl {
     spec.numInputs = 2;
     spec.numOutputs = Action::NUM_ACTIONS();
     spec.hiddenActivation = rnn::LayerActivation::TANH;
-    spec.outputActivation = rnn::LayerActivation::TANH;
+    spec.outputActivation = rnn::LayerActivation::LINEAR;
     spec.nodeActivationRate = 1.0f;
     spec.maxBatchSize = EXPERIENCE_BATCH_SIZE;
     spec.maxTraceLength = EXPERIENCE_MAX_TRACE_LENGTH;
@@ -84,8 +84,8 @@ struct LearningAgent::LearningAgentImpl {
     if (math::RandInterval(0.0, 1.0) < pRandom) {
       return chooseExplorativeAction(state);
     } else {
-      // return chooseWeightedAction(state);
-      return chooseBestAction(state, false);
+      return chooseWeightedAction(state);
+      // return chooseBestAction(state, false);
     }
   }
 
@@ -170,28 +170,25 @@ struct LearningAgent::LearningAgentImpl {
     return Action::ACTION(aa[rand() % aa.size()]);
   }
 
-  // Action chooseWeightedAction(const State *state) {
-  //   EMatrix qvalues = targetNet->Process(state->Encode());
-  //   assert(qvalues.rows() == static_cast<int>(Action::ALL_ACTIONS().size()));
-  //
-  //   std::vector<unsigned> availableActions = state->AvailableActions();
-  //   std::vector<float> weights;
-  //
-  //   for (unsigned i = 0; i < availableActions.size(); i++) {
-  //     weights.push_back(qvalues(availableActions[i]) / temperature, 0);
-  //   }
-  //   weights = Util::SoftmaxWeights(weights);
-  //
-  //   float sample = Util::RandInterval(0.0, 1.0);
-  //   for (unsigned i = 0; i < weights.size(); i++) {
-  //     sample -= weights[i];
-  //     if (sample <= 0.0f) {
-  //       return Action::ACTION(availableActions[i]);
-  //     }
-  //   }
-  //
-  //   return chooseExplorativeAction(state);
-  // }
+  Action chooseWeightedAction(const State *state) {
+    EVector qvalues = network->Process(state->Encode());
+    assert(qvalues.rows() == static_cast<int>(Action::NUM_ACTIONS()));
+
+    std::vector<unsigned> availableActions = state->AvailableActions();
+
+    qvalues *= 1.0f / temperature;
+    qvalues = math::SoftmaxActivations(qvalues);
+
+    float sample = math::RandInterval(0.0, 1.0);
+    for (unsigned i = 0; i < qvalues.rows(); i++) {
+      sample -= qvalues(i);
+      if (sample <= 0.0f) {
+        return Action::ACTION(availableActions[i]);
+      }
+    }
+
+    return chooseExplorativeAction(state);
+  }
 };
 
 LearningAgent::LearningAgent() : impl(new LearningAgentImpl()) {}
