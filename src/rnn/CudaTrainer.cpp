@@ -88,8 +88,12 @@ struct CudaTrainer::CudaTrainerImpl {
   Semaphore taskSem;
 
   vector<TrainTask> taskList = {
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CLEAR_BACKPROP_BUFFERS, TrainTask::CALCULATE_TARGETS,
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CLEAR_BACKPROP_BUFFERS, TrainTask::FORWARDPROP,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,
+      TrainTask::CLEAR_BACKPROP_BUFFERS,
+      TrainTask::CALCULATE_TARGETS,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,
+      TrainTask::CLEAR_BACKPROP_BUFFERS,
+      TrainTask::FORWARDPROP,
       TrainTask::BACKPROP_DELTA,
       TrainTask::COMPUTE_AND_UPDATE_GRADIENTS,
   };
@@ -402,11 +406,11 @@ struct CudaTrainer::CudaTrainerImpl {
       traceTargets[i].batchSize = curBatchSize;
 
       if (nextSlice == nullptr) {
-        executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->rewards,
-                                             0.9f, true, traceTargets[i].value));
+        executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->rewards, 0.8f, true,
+                                             traceTargets[i].value));
       } else {
-        executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards,
-                                             0.9f, false, traceTargets[i].value));
+        executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards, 0.8f,
+                                             false, traceTargets[i].value));
       }
     }
   }

@@ -13,7 +13,7 @@ static const CartSpec CART_SPEC(CART_WEIGHT_KG, PENDULUM_LENGTH, PENDULUM_WEIGHT
 static constexpr unsigned NUM_EPISODES = 100;
 static constexpr float STEP_LENGTH_SECS = 1.0f / 10.0f;
 static constexpr unsigned STEPS_PER_ACTION = 5;
-static constexpr unsigned EPISODE_LENGTH = 50;
+static constexpr unsigned EPISODE_LENGTH = 20;
 
 float Evaluator::Evaluate(Agent *agent) {
   uptr<PhysicsWorld> world = make_unique<PhysicsWorld>();
