@@ -4,5 +4,5 @@
 
 namespace Evaluator {
 
-float Evaluate(learning::Agent *agent);
+float Evaluate(learning::Agent *agent, bool debug);
 };

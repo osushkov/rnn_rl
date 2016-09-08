@@ -22,7 +22,7 @@ public:
   EVector Process(const EVector &input);
 
   void Update(const vector<SliceBatch> &trace);
-  void RefreshAndGetTarget(void);
+  void Refresh(void);
 
 private:
   struct RNNImpl;

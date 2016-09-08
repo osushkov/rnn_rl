@@ -42,10 +42,9 @@ struct RNN::RNNImpl {
 
   void Update(const vector<SliceBatch> &trace) { cudaTrainer.Train(trace); }
 
-  void RefreshAndGetTarget(void) {
+  void Refresh(void) {
     vector<pair<LayerConnection, math::MatrixView>> weights = getHostWeights();
     cudaTrainer.GetWeights(weights);
-    cudaTrainer.UpdateTarget();
   }
 
   vector<pair<LayerConnection, math::MatrixView>> getHostWeights(void) {
@@ -131,8 +130,7 @@ struct RNN::RNNImpl {
     } else {
       for (int r = 0; r < activation.rows(); r++) {
         activation(r) = ActivationValue(spec.hiddenActivation, incoming(r));
-        derivatives(r) =
-            ActivationDerivative(spec.hiddenActivation, incoming(r), activation(r));
+        derivatives(r) = ActivationDerivative(spec.hiddenActivation, incoming(r), activation(r));
       }
     }
 
@@ -150,9 +148,7 @@ struct RNN::RNNImpl {
 RNN::RNN(const RNNSpec &spec) : impl(new RNNImpl(spec)) {}
 RNN::~RNN() = default;
 
-RNNSpec RNN::GetSpec(void) const {
-  return impl->spec;
-}
+RNNSpec RNN::GetSpec(void) const { return impl->spec; }
 
 void RNN::ClearMemory(void) { impl->ClearMemory(); }
 
@@ -160,4 +156,4 @@ EVector RNN::Process(const EVector &input) { return impl->Process(input); }
 
 void RNN::Update(const vector<SliceBatch> &trace) { impl->Update(trace); }
 
-void RNN::RefreshAndGetTarget(void) { impl->RefreshAndGetTarget(); }
+void RNN::Refresh(void) { impl->Refresh(); }

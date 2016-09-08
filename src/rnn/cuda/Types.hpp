@@ -19,19 +19,6 @@ struct CuMatrix {
   size_t pitch;
 };
 
-struct TargetOutput {
-  unsigned batchSize; // equal to the number of rows in the matrix actually used.
-
-  // each sample is a row vector in the targetOutput matrix.
-  CuMatrix value;
-
-  TargetOutput() = default;
-  TargetOutput(unsigned batchSize, CuMatrix value) : batchSize(batchSize), value(value) {
-    assert(batchSize > 0);
-    assert(batchSize <= value.rows);
-  }
-};
-
 struct ConnectionActivation {
   unsigned batchSize; // equal to the number of rows in the matrix actually used.
 

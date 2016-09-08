@@ -10,7 +10,6 @@
 #include "kernels/TransposeKernel.cuh"
 #include "kernels/WeightedIncrementKernel.cuh"
 #include "kernels/ErrorMeasureKernel.cuh"
-#include "kernels/TargetValuesKernel.cuh"
 #include "Util.cuh"
 #include <cuda_runtime.h>
 
@@ -66,11 +65,6 @@ struct TaskExecutor::TaskExecutorImpl {
     case TaskType::FORWARD_INCREMENT:
       WeightedIncrementKernel::Apply(t.data.forwardIncrementData.layerWeights,
         t.data.forwardIncrementData.input, t.data.forwardIncrementData.output, stream);
-      return;
-    case TaskType::TARGET_QVALUES:
-      TargetValuesKernel::Apply(t.data.targetQValuesData.nextTargetActivation,
-        t.data.targetQValuesData.batchRewards, t.data.targetQValuesData.discountFactor,
-        t.data.targetQValuesData.useOnlyReward, t.data.targetQValuesData.outTargetValue, stream);
       return;
     case TaskType::ADAM_UPDATE:
       AdamKernel::UpdateMomentumAndRMS(

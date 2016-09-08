@@ -53,7 +53,17 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
     }
 
     cart->Remove(world->GetWorld());
+    summedRewards(result, REWARD_DELAY_DISCOUNT);
     return result;
+  }
+
+  void summedRewards(Experience &experience, float discount) {
+    float totalReward = 0.0f;
+    for (int i = experience.moments.size() - 1; i >= 0; i--) {
+      totalReward += experience.moments[i].reward;
+      experience.moments[i].reward = totalReward;
+      totalReward *= discount;
+    }
   }
 
   float getRandomPendulumImpulse(void) { return math::GaussianSample(0.0f, PENDULUM_WIND_STDDEV); }

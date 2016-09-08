@@ -10,7 +10,7 @@ using namespace rnn;
 using namespace rnn::cuda;
 
 __global__
-void errorMeasureKernel(ConnectionActivation nnOut, TargetOutput target, CuMatrix deltaMask,
+void errorMeasureKernel(ConnectionActivation nnOut, CuMatrix target, CuMatrix deltaMask,
                         LayerBatchDeltas out) {
 
   const unsigned row = blockDim.y * blockIdx.y + threadIdx.y;
@@ -21,17 +21,14 @@ void errorMeasureKernel(ConnectionActivation nnOut, TargetOutput target, CuMatri
   }
 
   float mask = *Elem(deltaMask, row, col);
-  float derivative = 1.0f;//*Elem(nnOut.derivative, row, col);
   *Elem(out.delta, row, col) =
-      mask * derivative * (*Elem(nnOut.activation, row, col) - *Elem(target.value, row, col));
-  // printf("%d delta: %f ** %f\n", col, *Elem(out.delta, row, col), *Elem(target.value, row, col));
+      mask * (*Elem(nnOut.activation, row, col) - *Elem(target, row, 0));
 }
 
-void ErrorMeasureKernel::Apply(ConnectionActivation networkOutput, TargetOutput targetOutput,
+void ErrorMeasureKernel::Apply(ConnectionActivation networkOutput, CuMatrix targetOutput,
                                CuMatrix deltaMask, LayerBatchDeltas out, cudaStream_t stream) {
 
-  assert(networkOutput.activation.cols == targetOutput.value.cols + 1);
-  assert(out.delta.cols == targetOutput.value.cols);
+  assert(networkOutput.activation.cols == out.delta.cols + 1);
   assert(deltaMask.rows == out.delta.rows);
   assert(deltaMask.cols == out.delta.cols);
 
@@ -40,5 +37,4 @@ void ErrorMeasureKernel::Apply(ConnectionActivation networkOutput, TargetOutput 
 
   errorMeasureKernel<<<dim3(bpgX, bpgY, 1), dim3(TPB_X, TPB_Y, 1), 0, stream>>>(
       networkOutput, targetOutput, deltaMask, out);
-      // getchar();
 }

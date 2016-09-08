@@ -28,9 +28,7 @@ constexpr float ADAM_EPSILON = 10e-8;
 enum class TrainTask {
   NONE,
   EXIT,
-  CLEAR_FORWARDPROP_BUFFERS,
-  CLEAR_BACKPROP_BUFFERS,
-  CALCULATE_TARGETS,
+  CLEAR_BUFFERS,
   FORWARDPROP,
   BACKPROP_DELTA,
   COMPUTE_AND_UPDATE_GRADIENTS,
@@ -66,8 +64,7 @@ struct CudaTrainer::CudaTrainerImpl {
   RNNSpec spec;
   unsigned maxTraceLength;
 
-  vector<CuLayer> learningLayers;
-  vector<CuLayer> targetLayers;
+  vector<CuLayer> layers;
 
   CuDeltaAccum deltaAccum;
   CuGradientAccum gradientAccum;
@@ -76,7 +73,6 @@ struct CudaTrainer::CudaTrainerImpl {
 
   TaskExecutor defaultExecutor;
   vector<SliceStaging> inputOutputStaging;
-  vector<TargetOutput> traceTargets;
 
   mutex m; // controls access to tasks for the workers.
   condition_variable cv;
@@ -88,13 +84,7 @@ struct CudaTrainer::CudaTrainerImpl {
   Semaphore taskSem;
 
   vector<TrainTask> taskList = {
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,
-      TrainTask::CLEAR_BACKPROP_BUFFERS,
-      TrainTask::CALCULATE_TARGETS,
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,
-      TrainTask::CLEAR_BACKPROP_BUFFERS,
-      TrainTask::FORWARDPROP,
-      TrainTask::BACKPROP_DELTA,
+      TrainTask::CLEAR_BUFFERS, TrainTask::FORWARDPROP, TrainTask::BACKPROP_DELTA,
       TrainTask::COMPUTE_AND_UPDATE_GRADIENTS,
   };
 
@@ -109,16 +99,11 @@ struct CudaTrainer::CudaTrainerImpl {
     adamState.Clear();
 
     for (const auto &layerSpec : spec.layers) {
-      learningLayers.emplace_back(spec, layerSpec);
-      targetLayers.emplace_back(spec, layerSpec);
+      layers.emplace_back(spec, layerSpec);
     }
-
-    UpdateTarget();
 
     for (unsigned i = 0; i < maxTraceLength; i++) {
       inputOutputStaging.emplace_back(spec);
-      traceTargets.emplace_back(spec.maxBatchSize,
-                                util::AllocMatrix(spec.maxBatchSize, spec.numOutputs));
     }
 
     createWorkers(4);
@@ -131,11 +116,7 @@ struct CudaTrainer::CudaTrainerImpl {
       w.join();
     }
 
-    for (auto &layer : targetLayers) {
-      layer.Cleanup();
-    }
-
-    for (auto &layer : learningLayers) {
+    for (auto &layer : layers) {
       layer.Cleanup();
     }
 
@@ -146,10 +127,6 @@ struct CudaTrainer::CudaTrainerImpl {
 
     for (auto &staging : inputOutputStaging) {
       staging.Cleanup();
-    }
-
-    for (auto &tt : traceTargets) {
-      util::FreeMatrix(tt.value);
     }
   }
 
@@ -175,8 +152,6 @@ struct CudaTrainer::CudaTrainerImpl {
       }
       assert(found);
     }
-
-    UpdateTarget();
   }
 
   void GetWeights(vector<pair<LayerConnection, math::MatrixView>> &outWeights) {
@@ -200,29 +175,9 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
-  void UpdateTarget(void) {
-    assert(targetLayers.size() == learningLayers.size());
-    for (unsigned i = 0; i < targetLayers.size(); i++) {
-      assert(targetLayers[i].incoming.size() == learningLayers[i].incoming.size());
-      for (unsigned j = 0; j < targetLayers[i].incoming.size(); j++) {
-        assert(targetLayers[i].incoming[j].first == learningLayers[i].incoming[j].first);
-
-        defaultExecutor.Execute(Task::CopyMatrixD2D(learningLayers[i].incoming[j].second.weights,
-                                                    targetLayers[i].incoming[j].second.weights));
-      }
-    }
-  }
-
   void Train(const vector<SliceBatch> &trace) {
     assert(trace.size() <= maxTraceLength);
     assert(!trace.empty());
-
-    // for (const auto& t : trace) {
-    //   cout << "input: " << t.batchInput << endl;
-    //   cout << "actions: " << t.batchActions << endl;
-    //   cout << "rewards: " << t.batchRewards << endl << endl;
-    // }
-    // getchar();
 
     {
       std::lock_guard<std::mutex> lk(m);
@@ -299,14 +254,9 @@ struct CudaTrainer::CudaTrainerImpl {
           switch (prevTask) {
           case TrainTask::EXIT:
             return;
-          case TrainTask::CLEAR_FORWARDPROP_BUFFERS:
+          case TrainTask::CLEAR_BUFFERS:
             workerClearForwardBuffers(executor, workerIdx);
-            break;
-          case TrainTask::CLEAR_BACKPROP_BUFFERS:
             workerClearBackpropBuffers(executor, workerIdx);
-            break;
-          case TrainTask::CALCULATE_TARGETS:
-            workerCalculateTargets(executor, workerIdx);
             break;
           case TrainTask::FORWARDPROP:
             workerForwardprop(executor, workerIdx);
@@ -364,57 +314,6 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
-  void workerCalculateTargets(TaskExecutor &executor, unsigned workerIdx) {
-    unsigned skip = workers.size();
-    for (unsigned i = workerIdx; i < spec.maxTraceLength; i += skip) {
-      CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
-      if (ts != nullptr) {
-        executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].actions, ts->actionsMask));
-        executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].rewards, ts->rewards));
-      }
-    }
-
-    // Calculate Targets has no 'trivial' stream level parallelism.
-    if (workerIdx != 0) {
-      return;
-    }
-
-    for (int i = 0; i < static_cast<int>(curTraceLength); i++) {
-      CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
-      assert(ts != nullptr);
-
-      bool foundInput = false;
-      for (auto &cd : ts->connectionData) {
-        if (cd.connection.srcLayerId == 0) {
-          executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[i].input, cd.activation));
-          cd.haveActivation = true;
-          foundInput = true;
-        }
-      }
-      assert(foundInput);
-
-      // Do the forward pass through this time slice.
-      forwardProp(executor, i, targetLayers);
-      assert(ts->networkOutput.haveActivation);
-    }
-
-    for (int i = 0; i < static_cast<int>(curTraceLength); i++) {
-      CuTimeSlice *ts = layerMemory.GetTimeSlice(i);
-      CuTimeSlice *nextSlice = layerMemory.GetTimeSlice(i + 1);
-      assert(ts != nullptr);
-
-      traceTargets[i].batchSize = curBatchSize;
-
-      if (nextSlice == nullptr) {
-        executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->rewards, 0.8f, true,
-                                             traceTargets[i].value));
-      } else {
-        executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards, 0.8f,
-                                             false, traceTargets[i].value));
-      }
-    }
-  }
-
   void workerForwardprop(TaskExecutor &executor, unsigned workerIdx) {
     // Forward Prop has no 'trivial' stream level parallelism.
     if (workerIdx != 0) {
@@ -436,7 +335,7 @@ struct CudaTrainer::CudaTrainerImpl {
       assert(foundInput);
 
       // Do the forward pass through this time slice.
-      forwardProp(executor, i, learningLayers);
+      forwardProp(executor, i, layers);
       assert(ts->networkOutput.haveActivation);
     }
   }
@@ -570,15 +469,18 @@ struct CudaTrainer::CudaTrainerImpl {
     ConnectionActivation networkOut(curBatchSize, ts->networkOutput.activation,
                                     ts->networkOutput.derivative);
 
-    CuLayerAccum *outputDelta = deltaAccum.GetDelta(learningLayers.back().layerId, timestamp);
+    CuLayerAccum *outputDelta = deltaAccum.GetDelta(layers.back().layerId, timestamp);
     assert(outputDelta != nullptr && outputDelta->samples == 0);
 
-    executor.Execute(Task::ErrorMeasure(networkOut, traceTargets[timestamp], ts->actionsMask,
+    executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[timestamp].actions, ts->actionsMask));
+    executor.Execute(Task::CopyMatrixH2D(inputOutputStaging[timestamp].rewards, ts->rewards));
+
+    executor.Execute(Task::ErrorMeasure(networkOut, ts->rewards, ts->actionsMask,
                                         LayerBatchDeltas(curBatchSize, outputDelta->accumDelta)));
     outputDelta->samples = 1;
 
-    assert(learningLayers.back().isOutput);
-    recursiveBackprop(executor, learningLayers.back(), timestamp);
+    assert(layers.back().isOutput);
+    recursiveBackprop(executor, layers.back(), timestamp);
   }
 
   void recursiveBackprop(TaskExecutor &executor, const CuLayer &layer, int timestamp) {
@@ -640,7 +542,7 @@ struct CudaTrainer::CudaTrainerImpl {
   }
 
   CuLayer *findLayer(unsigned layerId) {
-    for (auto &layer : learningLayers) {
+    for (auto &layer : layers) {
       if (layer.layerId == layerId) {
         return &layer;
       }
@@ -660,7 +562,5 @@ void CudaTrainer::SetWeights(const vector<pair<LayerConnection, math::MatrixView
 void CudaTrainer::GetWeights(vector<pair<LayerConnection, math::MatrixView>> &outWeights) {
   impl->GetWeights(outWeights);
 }
-
-void CudaTrainer::UpdateTarget(void) { impl->UpdateTarget(); }
 
 void CudaTrainer::Train(const vector<SliceBatch> &trace) { impl->Train(trace); }
