@@ -27,6 +27,7 @@ public:
   ~Cart();
 
   void Reset(float groundHeight);
+  void Remove(btDiscreteDynamicsWorld *pWorld);
   void Render(renderer::Renderer *renderer);
 
   // Applies impulse in the x-axis (left or right push).

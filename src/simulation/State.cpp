@@ -37,11 +37,11 @@ vector<unsigned> State::AvailableActions(void) const {
 }
 
 EVector State::Encode(void) const {
-  EVector result(2);
-  result(0) = GetCartXPos();
-  result(1) = GetHingeAngle();
-  // result(1) = GetPendulumXPos() / 100.0f;
-  // result(2) = GetPendulumYPos() / 100.0f;
+  EVector result(3);
+  result(0) = GetCartXPos() / 100.0f;
+  // result(1) = GetHingeAngle();
+  result(1) = GetPendulumXPos() / 100.0f;
+  result(2) = GetPendulumYPos() / 100.0f;
   return result;
 }
 

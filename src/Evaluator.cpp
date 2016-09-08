@@ -18,18 +18,16 @@ static constexpr unsigned EPISODE_LENGTH = 50;
 float Evaluator::Evaluate(Agent *agent) {
   uptr<PhysicsWorld> world = make_unique<PhysicsWorld>();
   uptr<Cart> cart = make_unique<Cart>(CART_SPEC, world->GetWorld());
+  cart->Reset(0.1f);
 
   float reward = 0.0f;
   for (unsigned i = 0; i < NUM_EPISODES; i++) {
-    cart->Reset(0.0f);
     agent->ResetMemory();
 
     for (unsigned j = 0; j < EPISODE_LENGTH; j++) {
       State observedState(cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY(),
                           cart->GetHingeAngle());
       Action performedAction = agent->SelectAction(&observedState);
-      // cout << "Eval action: " << cart->GetHingeAngle() << " " << performedAction << endl;
-      // getchar();
 
       cart->ApplyCartImpulse(performedAction.GetImpulse());
       cart->ApplyPendulumImpulse(math::GaussianSample(0.0f, PENDULUM_WIND_STDDEV));
@@ -42,6 +40,10 @@ float Evaluator::Evaluate(Agent *agent) {
         reward += PENALTY;
       }
     }
+
+    cart->Remove(world->GetWorld());
+    cart = make_unique<Cart>(CART_SPEC, world->GetWorld());
+    cart->Reset(0.1f);
   }
 
   return reward / NUM_EPISODES;

@@ -220,13 +220,21 @@ struct Cart::CartImpl {
     }
   }
 
+  void Remove(btDiscreteDynamicsWorld *pWorld) {
+    pWorld->removeRigidBody(box->body.get());
+    pWorld->removeRigidBody(pendulum->body.get());
+    pWorld->removeConstraint(pendulum->joint.get());
+
+    for (auto &wheel : wheels) {
+      pWorld->removeRigidBody(wheel->body.get());
+      pWorld->removeConstraint(wheel->joint.get());
+    }
+  }
+
   void Render(renderer::Renderer *renderer) {
     renderWheels(renderer);
     renderPendulum(renderer);
     renderBody(renderer);
-
-    // cout << "box: " << trans.getOrigin().getX() << "," << trans.getOrigin().getY() << ","
-    //      << trans.getOrigin().getZ() << endl;
   }
 
   void renderBody(renderer::Renderer *renderer) {
@@ -308,6 +316,8 @@ Cart::Cart(const CartSpec &spec, btDiscreteDynamicsWorld *pWorld)
 Cart::~Cart() = default;
 
 void Cart::Reset(float groundHeight) { impl->Reset(groundHeight); }
+
+void Cart::Remove(btDiscreteDynamicsWorld *pWorld) { impl->Remove(pWorld); }
 
 void Cart::Render(renderer::Renderer *renderer) { impl->Render(renderer); }
 

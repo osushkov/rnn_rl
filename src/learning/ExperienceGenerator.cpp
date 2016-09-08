@@ -18,10 +18,8 @@ static constexpr unsigned MIN_TRACE_LENGTH = 15;
 
 struct ExperienceGenerator::ExperienceGeneratorImpl {
   uptr<PhysicsWorld> world;
-  uptr<Cart> cart;
 
-  ExperienceGeneratorImpl()
-      : world(new PhysicsWorld()), cart(new Cart(CART_SPEC, world->GetWorld())) {}
+  ExperienceGeneratorImpl() : world(new PhysicsWorld()) {}
 
   Experience GenerateExperience(LearningAgent *agent) {
     assert(agent != nullptr);
@@ -29,7 +27,9 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
     Experience result;
     result.moments.reserve(MAX_TRACE_LENGTH);
 
-    cart->Reset(0.0f);
+    uptr<Cart> cart = make_unique<Cart>(CART_SPEC, world->GetWorld());
+    cart->Reset(0.1f);
+
     agent->ResetMemory();
     for (unsigned i = 0; i < MAX_TRACE_LENGTH; i++) {
       State observedState(
@@ -44,18 +44,15 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
       }
 
       bool thresholdExceeded = fabsf(cart->GetHingeAngle()) > HINGE_ANGLE_THRESHOLD;
-      // cout << observedState << endl << performedAction << endl;
-      // cout << thresholdExceeded << endl;
       float reward = thresholdExceeded ? PENALTY : 0.0f;
-      // cout << "reward: " << reward << endl;
-
       result.moments.emplace_back(observedState.Encode(), performedAction, reward);
-
+      
       if (thresholdExceeded && i >= MIN_TRACE_LENGTH) {
         break;
       }
     }
 
+    cart->Remove(world->GetWorld());
     return result;
   }
 

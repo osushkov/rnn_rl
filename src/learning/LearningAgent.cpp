@@ -28,7 +28,7 @@ struct LearningAgent::LearningAgentImpl {
   void createNetwork(void) {
     rnn::RNNSpec spec;
 
-    spec.numInputs = 2;
+    spec.numInputs = 3;
     spec.numOutputs = Action::NUM_ACTIONS();
     spec.hiddenActivation = rnn::LayerActivation::TANH;
     spec.outputActivation = rnn::LayerActivation::LINEAR;
@@ -48,8 +48,8 @@ struct LearningAgent::LearningAgentImpl {
     spec.connections.emplace_back(2, 2, 1);
 
     // 2 layers, 1 hidden.
-    spec.layers.emplace_back(1, 32, false);
-    spec.layers.emplace_back(2, 32, false);
+    spec.layers.emplace_back(1, 64, false);
+    spec.layers.emplace_back(2, 64, false);
     spec.layers.emplace_back(3, spec.numOutputs, true);
 
     network = make_unique<rnn::RNN>(spec);

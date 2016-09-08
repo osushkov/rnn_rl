@@ -23,31 +23,31 @@ int main(int argc, char **argv) {
   cout << "learning agent start: " << Evaluator::Evaluate(learningAgent.get()) << endl;
 
   learning::Trainer trainer;
-  trainer.TrainAgent(learningAgent.get(), 1000000);
+  trainer.TrainAgent(learningAgent.get(), 100000);
 
   cout << "learning agent end: " << Evaluator::Evaluate(learningAgent.get()) << endl;
-  /*
-    PhysicsWorld world;
-    Cart cart(CartSpec(5.0f, 1.0f, 1.0f), world.GetWorld());
-    cart.Reset(0.0f);
-    cart.ApplyCartImpulse(-100.0f);
 
-    uptr<Renderer> renderer = make_unique<SFMLRenderer>(800, 400, "Cart Sim");
+  // PhysicsWorld world;
+  // Cart cart(CartSpec(5.0f, 1.0f, 1.0f), world.GetWorld());
+  // cart.Reset(0.0f);
+  // cart.ApplyCartImpulse(-100.0f);
+  //
+  // uptr<Renderer> renderer = make_unique<SFMLRenderer>(800, 400, "Cart Sim");
+  //
+  // for (unsigned i = 0; i < 1000; i++) {
+  //   if (i % 100 == 0 && i > 0) {
+  //     cart.Reset(0.0f);
+  //     cart.ApplyCartImpulse(-100.0f * (-1.0f + 2.0f * (rand() % 2)));
+  //   }
+  //
+  //   world.Step(1.0 / 30.0f);
+  //   world.Render(renderer.get());
+  //   cart.Render(renderer.get());
+  //   renderer->SwapBuffers();
+  //   cout << "step: " << i << endl;
+  //   getchar();
+  // }
 
-    for (unsigned i = 0; i < 1000; i++) {
-      if (i % 100 == 0 && i > 0) {
-        cart.Reset(0.0f);
-        cart.ApplyCartImpulse(-100.0f * (-1.0f + 2.0f * (rand() % 2)));
-      }
-
-      world.Step(1.0 / 30.0f);
-      world.Render(renderer.get());
-      cart.Render(renderer.get());
-      renderer->SwapBuffers();
-      cout << "step: " << i << endl;
-      getchar();
-    }
-  */
   // sf::RenderWindow window(sf::VideoMode(300, 300), "SFML works!");
   // sf::CircleShape shape(100.0f);
   // shape.setPosition(50.0f, 100.0f);
