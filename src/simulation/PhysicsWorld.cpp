@@ -79,8 +79,8 @@ struct PhysicsWorld::PhysicsWorldImpl {
   }
 
   void addWalls(void) {
-    leftWall = make_unique<Wall>(-100.0f, 0.0f);
-    rightWall = make_unique<Wall>(100.0f, 0.0f);
+    leftWall = make_unique<Wall>(-200.0f, 0.0f);
+    rightWall = make_unique<Wall>(200.0f, 0.0f);
 
     dynamicsWorld->addRigidBody(leftWall->body.get());
     dynamicsWorld->addRigidBody(leftWall->body.get());
