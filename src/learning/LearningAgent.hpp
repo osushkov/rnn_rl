@@ -24,7 +24,7 @@ public:
   void SetTemperature(float temperature);
 
   Action SelectLearningAction(const State *state);
-  void Learn(const vector<Experience> &experiences);
+  void Learn(const vector<Experience> &experiences, float learnRate);
 
   void Finalise(void);
 

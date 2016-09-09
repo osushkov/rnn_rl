@@ -30,7 +30,7 @@ struct LearningAgent::LearningAgentImpl {
 
     spec.numInputs = 2;
     spec.numOutputs = Action::NUM_ACTIONS();
-    spec.hiddenActivation = rnn::LayerActivation::TANH;
+    spec.hiddenActivation = rnn::LayerActivation::ELU;
     spec.outputActivation = rnn::LayerActivation::LINEAR;
     spec.nodeActivationRate = 1.0f;
     spec.maxBatchSize = EXPERIENCE_BATCH_SIZE;
@@ -44,13 +44,13 @@ struct LearningAgent::LearningAgentImpl {
     spec.connections.emplace_back(2, 3, 0);
 
     // Recurrent self-connections for layers 1 and 2.
-    // spec.connections.emplace_back(1, 2, 1);
-    spec.connections.emplace_back(2, 1, 1);
+    spec.connections.emplace_back(1, 1, 1);
+    spec.connections.emplace_back(2, 2, 1);
     // spec.connections.emplace_back(2, 1, 1);
 
     // 2 layers, 1 hidden.
     spec.layers.emplace_back(1, 64, false);
-    spec.layers.emplace_back(2, 32, false);
+    spec.layers.emplace_back(2, 64, false);
     spec.layers.emplace_back(3, spec.numOutputs, true);
 
     network = make_unique<rnn::RNN>(spec);
@@ -85,12 +85,12 @@ struct LearningAgent::LearningAgentImpl {
     if (math::RandInterval(0.0, 1.0) < pRandom) {
       return chooseExplorativeAction(state);
     } else {
-      return chooseWeightedAction(state);
-      // return chooseBestAction(state, false);
+      // return chooseWeightedAction(state);
+      return chooseBestAction(state, false);
     }
   }
 
-  void Learn(const vector<Experience> &experiences) {
+  void Learn(const vector<Experience> &experiences, float learnRate) {
     rnn::RNNSpec rnnSpec = network->GetSpec();
     assert(experiences.size() <= rnnSpec.maxBatchSize);
 
@@ -133,7 +133,7 @@ struct LearningAgent::LearningAgentImpl {
       }
     }
 
-    network->Update(trainInput);
+    network->Update(trainInput, learnRate);
   }
 
   void Finalise(void) {
@@ -153,6 +153,7 @@ struct LearningAgent::LearningAgentImpl {
     float bestQValue = qvalues(availableActions[0]);
 
     if (print) {
+      cout << *state << endl;
       cout << "q(0) = " << qvalues(availableActions[0]) << endl;
     }
     for (unsigned i = 1; i < availableActions.size(); i++) {
@@ -163,6 +164,9 @@ struct LearningAgent::LearningAgentImpl {
         bestQValue = qvalues(availableActions[i]);
         bestActionIndex = availableActions[i];
       }
+    }
+    if (print) {
+      getchar();
     }
     return Action::ACTION(bestActionIndex);
   }
@@ -206,6 +210,8 @@ Action LearningAgent::SelectLearningAction(const State *state) {
   return impl->SelectLearningAction(state);
 }
 
-void LearningAgent::Learn(const vector<Experience> &experiences) { impl->Learn(experiences); }
+void LearningAgent::Learn(const vector<Experience> &experiences, float learnRate) {
+  impl->Learn(experiences, learnRate);
+}
 
 void LearningAgent::Finalise(void) { impl->Finalise(); }

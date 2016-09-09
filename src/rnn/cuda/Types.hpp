@@ -3,6 +3,7 @@
 
 #include <cassert>
 #include <cstddef>
+#include <iostream>
 
 namespace rnn {
 namespace cuda {
@@ -17,6 +18,8 @@ struct CuMatrix {
 
   // The pitch of the rows of the weights matrix in bytes.
   size_t pitch;
+
+  void Print(void) const;
 };
 
 struct TargetOutput {

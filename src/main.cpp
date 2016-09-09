@@ -17,13 +17,13 @@ int main(int argc, char **argv) {
   std::cout << "hello world" << std::endl;
 
   uptr<learning::Agent> randomAgent = make_unique<learning::RandomAgent>();
-  cout << "random agent: " << Evaluator::Evaluate(randomAgent.get()) << endl;
+  // cout << "random agent: " << Evaluator::Evaluate(randomAgent.get()) << endl;
 
   uptr<learning::LearningAgent> learningAgent = make_unique<learning::LearningAgent>();
   cout << "learning agent start: " << Evaluator::Evaluate(learningAgent.get()) << endl;
 
   learning::Trainer trainer;
-  trainer.TrainAgent(learningAgent.get(), 100000);
+  trainer.TrainAgent(learningAgent.get(), 200000);
 
   cout << "learning agent end: " << Evaluator::Evaluate(learningAgent.get()) << endl;
 

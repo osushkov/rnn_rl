@@ -21,7 +21,7 @@ public:
   void ClearMemory(void);
   EVector Process(const EVector &input);
 
-  void Update(const vector<SliceBatch> &trace);
+  void Update(const vector<SliceBatch> &trace, float learnRate);
   void RefreshAndGetTarget(void);
 
 private:

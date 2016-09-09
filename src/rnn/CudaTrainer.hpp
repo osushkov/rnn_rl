@@ -17,7 +17,7 @@ public:
   void GetWeights(vector<pair<LayerConnection, math::MatrixView>> &outWeights);
   void UpdateTarget(void);
 
-  void Train(const vector<SliceBatch> &trace);
+  void Train(const vector<SliceBatch> &trace, float learnRate);
 
 private:
   struct CudaTrainerImpl;

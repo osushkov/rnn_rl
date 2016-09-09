@@ -28,6 +28,9 @@ float Evaluator::Evaluate(Agent *agent) {
       State observedState(cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY(),
                           cart->GetHingeAngle());
       Action performedAction = agent->SelectAction(&observedState);
+      // cout << observedState << endl;
+      // cout << performedAction << endl;
+      // getchar();
 
       cart->ApplyCartImpulse(performedAction.GetImpulse());
       cart->ApplyPendulumImpulse(math::GaussianSample(0.0f, PENDULUM_WIND_STDDEV));

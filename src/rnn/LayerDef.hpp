@@ -22,6 +22,10 @@ struct LayerConnection {
     return srcLayerId == other.srcLayerId && dstLayerId == other.dstLayerId &&
            timeOffset == other.timeOffset;
   }
+
+  void Print(void) const {
+    std::cout << srcLayerId << " -> " << dstLayerId << " (" << timeOffset << ")" << std::endl;
+  }
 };
 
 struct LayerSpec {

@@ -20,12 +20,12 @@ void targetValuesKernel(CuMatrix nextTargetActivation, CuMatrix nextActionMask, 
       *Elem(outTargetValue, batchIndex, i) = *Elem(batchRewards, batchIndex, 0);
     }
   } else {
-    float sum = 0.0f;
-    for (unsigned i = 0; i < nextTargetActivation.cols - 1; i++) {
-      sum +=  *Elem(nextActionMask, batchIndex, i) * *Elem(nextTargetActivation, batchIndex, i);
+    float maxVal = *Elem(nextTargetActivation, batchIndex, 0);
+    for (unsigned i = 1; i < nextTargetActivation.cols - 1; i++) {
+      maxVal = fmaxf(maxVal, *Elem(nextTargetActivation, batchIndex, i));
     }
 
-    float target = *Elem(batchRewards, batchIndex, 0) + discountFactor * sum;
+    float target = *Elem(batchRewards, batchIndex, 0) + discountFactor * maxVal;
     // printf("reward: %f , target: %f\n", *Elem(batchRewards, batchIndex, 0), target);
     // TODO: this is unnecessary as we only need to set the target on one output connection,
     // corresponding to the action actually performed.
@@ -39,7 +39,6 @@ void TargetValuesKernel::Apply(CuMatrix nextTargetActivation, CuMatrix nextActio
                                CuMatrix batchRewards, float discountFactor, bool useOnlyReward,
                                CuMatrix outTargetValue, cudaStream_t stream) {
 
-  assert(nextTargetActivation.cols == nextActionMask.cols + 1);
   assert(nextTargetActivation.cols == outTargetValue.cols + 1);
   assert(nextTargetActivation.rows == outTargetValue.rows);
   assert(batchRewards.cols == 1);

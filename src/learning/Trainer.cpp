@@ -21,11 +21,14 @@ using namespace learning;
 
 static constexpr unsigned EXPERIENCE_MEMORY_SIZE = 20000;
 
-static constexpr float INITIAL_PRANDOM = 0.5f;
+static constexpr float INITIAL_PRANDOM = 0.9f;
 static constexpr float TARGET_PRANDOM = 0.1f;
 
 static constexpr float INITIAL_TEMPERATURE = 0.5f;
 static constexpr float TARGET_TEMPERATURE = 0.001f;
+
+static constexpr float INITIAL_LEARN_RATE = 1.0f;
+static constexpr float TARGET_LEARN_RATE = 0.001f;
 
 struct Trainer::TrainerImpl {
   atomic<unsigned> numLearnIters;
@@ -73,19 +76,42 @@ struct Trainer::TrainerImpl {
 
   std::thread startLearnThread(LearningAgent *agent, ExperienceMemory *memory, unsigned iters) {
     return std::thread([this, agent, memory, iters]() {
+      float lrDecay = powf(TARGET_LEARN_RATE / INITIAL_LEARN_RATE, 1.0f / iters);
+      assert(lrDecay > 0.0f && lrDecay <= 1.0f);
+
       while (memory->NumMemories() < 5 * EXPERIENCE_BATCH_SIZE) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
       }
 
-      for (unsigned i = 0; i < iters; i++) {
-        agent->Learn(memory->Sample(EXPERIENCE_BATCH_SIZE, EXPERIENCE_MAX_TRACE_LENGTH));
+      // unsigned it = 0;
+      // for (unsigned i = 2; i <= EXPERIENCE_MAX_TRACE_LENGTH; i++) {
+      //   for (unsigned j = 0; j < iters / EXPERIENCE_MAX_TRACE_LENGTH; j++) {
 
-        if (i % 1000 == 0) {
-          cout << "learn: " << ((100 * i) / iters) << "%" << endl;
-        }
-        this->numLearnIters++;
+          for (unsigned it = 0; it < iters; it++) {
+          float lr = INITIAL_LEARN_RATE * powf(lrDecay, it);
+          agent->Learn(memory->Sample(EXPERIENCE_BATCH_SIZE, EXPERIENCE_MAX_TRACE_LENGTH), 1.0f);
+
+          if (it % 1000 == 0) {
+            cout << "learn: " << ((100 * it) / iters) << "%" << endl;
+          }
+          this->numLearnIters++;
+          // it++;
+        // }
       }
 
+
+      // for (unsigned i = 0; i < iters; i++) {
+      //   float lr = INITIAL_LEARN_RATE * powf(lrDecay, i);
+      //   agent->Learn(memory->Sample(EXPERIENCE_BATCH_SIZE, EXPERIENCE_MAX_TRACE_LENGTH), lr);
+      //
+      //   if (i % 1000 == 0) {
+      //     cout << "learn: " << ((100 * i) / iters) << "%" << endl;
+      //   }
+      //   this->numLearnIters++;
+      // }
+
+      this->numLearnIters = iters;
+      cout << "done" << endl;
       agent->Finalise();
     });
   }

@@ -40,7 +40,7 @@ struct RNN::RNNImpl {
     return output;
   }
 
-  void Update(const vector<SliceBatch> &trace) { cudaTrainer.Train(trace); }
+  void Update(const vector<SliceBatch> &trace, float learnRate) { cudaTrainer.Train(trace, learnRate); }
 
   void RefreshAndGetTarget(void) {
     vector<pair<LayerConnection, math::MatrixView>> weights = getHostWeights();
@@ -158,6 +158,6 @@ void RNN::ClearMemory(void) { impl->ClearMemory(); }
 
 EVector RNN::Process(const EVector &input) { return impl->Process(input); }
 
-void RNN::Update(const vector<SliceBatch> &trace) { impl->Update(trace); }
+void RNN::Update(const vector<SliceBatch> &trace, float learnRate) { impl->Update(trace, learnRate); }
 
 void RNN::RefreshAndGetTarget(void) { impl->RefreshAndGetTarget(); }

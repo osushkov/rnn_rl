@@ -44,9 +44,9 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
       }
 
       bool thresholdExceeded = fabsf(cart->GetHingeAngle()) > HINGE_ANGLE_THRESHOLD;
-      float reward = thresholdExceeded ? PENALTY : 0.0f;
+      float reward = 0.5f - fabsf(cart->GetHingeAngle()); //thresholdExceeded ? PENALTY : 0.0f;
       result.moments.emplace_back(observedState.Encode(), performedAction, reward);
-      
+
       if (thresholdExceeded && i >= MIN_TRACE_LENGTH) {
         break;
       }

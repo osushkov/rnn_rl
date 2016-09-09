@@ -22,7 +22,7 @@ using namespace rnn::cuda;
 
 constexpr float ADAM_BETA1 = 0.9f;
 constexpr float ADAM_BETA2 = 0.999f;
-constexpr float ADAM_LR = 0.001f;
+constexpr float ADAM_LR = 0.01f;
 constexpr float ADAM_EPSILON = 10e-8;
 
 enum class TrainTask {
@@ -85,11 +85,16 @@ struct CudaTrainer::CudaTrainerImpl {
   TrainTask currentWorkerTask;
   unsigned curBatchSize;
   unsigned curTraceLength;
+  float curLearnRate;
   Semaphore taskSem;
 
   vector<TrainTask> taskList = {
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CLEAR_BACKPROP_BUFFERS, TrainTask::CALCULATE_TARGETS,
-      TrainTask::CLEAR_FORWARDPROP_BUFFERS,    TrainTask::CLEAR_BACKPROP_BUFFERS, TrainTask::FORWARDPROP,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,
+      TrainTask::CLEAR_BACKPROP_BUFFERS,
+      TrainTask::CALCULATE_TARGETS,
+      TrainTask::CLEAR_FORWARDPROP_BUFFERS,
+      TrainTask::CLEAR_BACKPROP_BUFFERS,
+      TrainTask::FORWARDPROP,
       TrainTask::BACKPROP_DELTA,
       TrainTask::COMPUTE_AND_UPDATE_GRADIENTS,
   };
@@ -209,7 +214,7 @@ struct CudaTrainer::CudaTrainerImpl {
     }
   }
 
-  void Train(const vector<SliceBatch> &trace) {
+  void Train(const vector<SliceBatch> &trace, float learnRate) {
     assert(trace.size() <= maxTraceLength);
     assert(!trace.empty());
 
@@ -224,6 +229,7 @@ struct CudaTrainer::CudaTrainerImpl {
       std::lock_guard<std::mutex> lk(m);
       curBatchSize = trace.front().batchInput.rows();
       curTraceLength = trace.size();
+      curLearnRate = learnRate;
     }
 
     pushTraceToStaging(trace);
@@ -486,6 +492,11 @@ struct CudaTrainer::CudaTrainerImpl {
       CuAdamConnection *adamConn = adamState.GetConnection(connection);
       assert(adamConn != nullptr);
 
+      // connection.Print();
+      // cout << "grad: " << endl;
+      // connAccum->accumGradient.Print();
+      // getchar();
+
       executor.Execute(Task::AdamUpdate(connAccum->accumGradient, adamConn->momentum, adamConn->rms,
                                         ADAM_BETA1, ADAM_BETA2));
 
@@ -496,7 +507,7 @@ struct CudaTrainer::CudaTrainerImpl {
       assert(weights != nullptr);
 
       executor.Execute(Task::AdamIncrement(weights->weights, adamConn->momentum, adamConn->rms,
-                                           ADAM_BETA1, ADAM_BETA2, ADAM_LR, ADAM_EPSILON));
+                                           ADAM_BETA1, ADAM_BETA2, ADAM_LR * curLearnRate, ADAM_EPSILON));
       executor.Execute(Task::TransposeMatrix(weights->weights, weights->weightsT));
     }
   }
@@ -661,4 +672,4 @@ void CudaTrainer::GetWeights(vector<pair<LayerConnection, math::MatrixView>> &ou
 
 void CudaTrainer::UpdateTarget(void) { impl->UpdateTarget(); }
 
-void CudaTrainer::Train(const vector<SliceBatch> &trace) { impl->Train(trace); }
+void CudaTrainer::Train(const vector<SliceBatch> &trace, float learnRate) { impl->Train(trace, learnRate); }
