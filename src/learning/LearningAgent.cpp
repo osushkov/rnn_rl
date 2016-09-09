@@ -44,12 +44,12 @@ struct LearningAgent::LearningAgentImpl {
     spec.connections.emplace_back(2, 3, 0);
 
     // Recurrent self-connections for layers 1 and 2.
-    spec.connections.emplace_back(1, 2, 1);
+    // spec.connections.emplace_back(1, 2, 1);
     spec.connections.emplace_back(2, 1, 1);
     // spec.connections.emplace_back(2, 1, 1);
 
     // 2 layers, 1 hidden.
-    spec.layers.emplace_back(1, 32, false);
+    spec.layers.emplace_back(1, 64, false);
     spec.layers.emplace_back(2, 32, false);
     spec.layers.emplace_back(3, spec.numOutputs, true);
 

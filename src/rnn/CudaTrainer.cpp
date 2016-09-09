@@ -402,10 +402,12 @@ struct CudaTrainer::CudaTrainerImpl {
       traceTargets[i].batchSize = curBatchSize;
 
       if (nextSlice == nullptr) {
-        executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->rewards,
+        executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->actionsMask,
+                                      ts->rewards,
                                              0.9f, true, traceTargets[i].value));
       } else {
-        executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation, ts->rewards,
+        executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation,
+        nextSlice->actionsMask, ts->rewards,
                                              0.9f, false, traceTargets[i].value));
       }
     }

@@ -114,15 +114,16 @@ struct ForwardIncrementData {
 
 struct TargetQValuesData {
   CuMatrix nextTargetActivation;
+  CuMatrix nextActionMask;
   CuMatrix batchRewards;
   float discountFactor;
   bool useOnlyReward;
   CuMatrix outTargetValue;
 
   TargetQValuesData() = default;
-  TargetQValuesData(CuMatrix nextTargetActivation, CuMatrix batchRewards, float discountFactor,
+  TargetQValuesData(CuMatrix nextTargetActivation, CuMatrix nextActionMask, CuMatrix batchRewards, float discountFactor,
                     bool useOnlyReward, CuMatrix outTargetValue)
-      : nextTargetActivation(nextTargetActivation), batchRewards(batchRewards),
+      : nextTargetActivation(nextTargetActivation), nextActionMask(nextActionMask), batchRewards(batchRewards),
         discountFactor(discountFactor), useOnlyReward(useOnlyReward), outTargetValue(outTargetValue) {}
 };
 
@@ -282,12 +283,12 @@ struct Task {
     return task;
   }
 
-  static Task TargetQValues(CuMatrix nextTargetActivation, CuMatrix batchRewards,
+  static Task TargetQValues(CuMatrix nextTargetActivation, CuMatrix nextActionMask, CuMatrix batchRewards,
                             float discountFactor, bool useOnlyReward, CuMatrix outTargetValue) {
     Task task;
     task.type = TaskType::TARGET_QVALUES;
     task.data.targetQValuesData =
-        TargetQValuesData(nextTargetActivation, batchRewards, discountFactor, useOnlyReward, outTargetValue);
+        TargetQValuesData(nextTargetActivation, nextActionMask, batchRewards, discountFactor, useOnlyReward, outTargetValue);
     return task;
   }
 

@@ -68,7 +68,7 @@ struct TaskExecutor::TaskExecutorImpl {
         t.data.forwardIncrementData.input, t.data.forwardIncrementData.output, stream);
       return;
     case TaskType::TARGET_QVALUES:
-      TargetValuesKernel::Apply(t.data.targetQValuesData.nextTargetActivation,
+      TargetValuesKernel::Apply(t.data.targetQValuesData.nextTargetActivation, t.data.targetQValuesData.nextActionMask,
         t.data.targetQValuesData.batchRewards, t.data.targetQValuesData.discountFactor,
         t.data.targetQValuesData.useOnlyReward, t.data.targetQValuesData.outTargetValue, stream);
       return;
