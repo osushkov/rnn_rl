@@ -14,7 +14,7 @@ static const CartSpec CART_SPEC(CART_WEIGHT_KG, PENDULUM_LENGTH, PENDULUM_WEIGHT
 static constexpr float STEP_LENGTH_SECS = 1.0f / 10.0f;
 static constexpr unsigned STEPS_PER_ACTION = 5; // Agent gets to perform an action once a second.
 static constexpr unsigned MAX_TRACE_LENGTH = 30;
-static constexpr unsigned MIN_TRACE_LENGTH = 15;
+static constexpr unsigned MIN_TRACE_LENGTH = 18;
 
 struct ExperienceGenerator::ExperienceGeneratorImpl {
   uptr<PhysicsWorld> world;
@@ -32,8 +32,8 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
 
     agent->ResetMemory();
     for (unsigned i = 0; i < MAX_TRACE_LENGTH; i++) {
-      State observedState(
-          cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY(), cart->GetHingeAngle());
+      State observedState(cart->GetCartXPos(), cart->GetPendulumX(), cart->GetPendulumY(),
+                          cart->GetHingeAngle());
       Action performedAction = agent->SelectLearningAction(&observedState);
 
       cart->ApplyCartImpulse(performedAction.GetImpulse());
@@ -44,7 +44,8 @@ struct ExperienceGenerator::ExperienceGeneratorImpl {
       }
 
       bool thresholdExceeded = fabsf(cart->GetHingeAngle()) > HINGE_ANGLE_THRESHOLD;
-      float reward = 0.5f - fabsf(cart->GetHingeAngle()); //thresholdExceeded ? PENALTY : 0.0f;
+      float reward = 0.5f - fabsf(cart->GetHingeAngle());
+      // float reward = thresholdExceeded ? (0.5f + PENALTY) : 0.5f;
       result.moments.emplace_back(observedState.Encode(), performedAction, reward);
 
       if (thresholdExceeded && i >= MIN_TRACE_LENGTH) {

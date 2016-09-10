@@ -63,3 +63,15 @@ Layer::Layer(const RNNSpec &nnSpec, const LayerSpec &layerSpec)
     }
   }
 }
+
+void Layer::Read(std::istream &in) {
+  for (auto &weight : weights) {
+    weight.second = math::ReadMatrix(in);
+  }
+}
+
+void Layer::Write(std::ostream &out) const {
+  for (const auto &weight : weights) {
+    math::WriteMatrix(weight.second, out);
+  }
+}

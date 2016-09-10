@@ -8,8 +8,12 @@ class Timer {
 public:
   void Start(void);
   void Stop(void);
-  float GetNumElapsedSeconds(void) const;
-  unsigned GetNumElapsedMicroseconds(void) const;
+
+  float GetIntervalElapsedSeconds(void) const;
+  unsigned GetIntervalElapsedMicroseconds(void) const;
+
+  float GetElapsedSeconds(void) const;
+  unsigned GetElapsedMicroseconds(void) const;
 
 private:
   struct timeval startTime;

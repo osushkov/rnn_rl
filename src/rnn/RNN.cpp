@@ -27,6 +27,23 @@ struct RNN::RNNImpl {
     cudaTrainer.SetWeights(weights);
   }
 
+  void Read(std::istream &in) {
+    for (auto &layer : layers) {
+      layer.Read(in);
+    }
+
+    vector<pair<LayerConnection, math::MatrixView>> weights = getHostWeights();
+    cudaTrainer.SetWeights(weights);
+  }
+
+  void Write(std::ostream &out) const {
+    spec.Write(out);
+
+    for (const auto &layer : layers) {
+      layer.Write(out);
+    }
+  }
+
   void ClearMemory(void) { previous = Maybe<TimeSlice>::none; }
 
   EVector Process(const EVector &input) {
@@ -40,7 +57,9 @@ struct RNN::RNNImpl {
     return output;
   }
 
-  void Update(const vector<SliceBatch> &trace, float learnRate) { cudaTrainer.Train(trace, learnRate); }
+  void Update(const vector<SliceBatch> &trace, float learnRate) {
+    cudaTrainer.Train(trace, learnRate);
+  }
 
   void RefreshAndGetTarget(void) {
     vector<pair<LayerConnection, math::MatrixView>> weights = getHostWeights();
@@ -131,8 +150,7 @@ struct RNN::RNNImpl {
     } else {
       for (int r = 0; r < activation.rows(); r++) {
         activation(r) = ActivationValue(spec.hiddenActivation, incoming(r));
-        derivatives(r) =
-            ActivationDerivative(spec.hiddenActivation, incoming(r), activation(r));
+        derivatives(r) = ActivationDerivative(spec.hiddenActivation, incoming(r), activation(r));
       }
     }
 
@@ -147,17 +165,26 @@ struct RNN::RNNImpl {
   }
 };
 
+uptr<RNN> RNN::Read(std::istream &in) {
+  RNNSpec spec = RNNSpec::Read(in);
+  uptr<RNN> result = make_unique<RNN>(spec);
+  result->Read(in);
+  return move(result);
+}
+
 RNN::RNN(const RNNSpec &spec) : impl(new RNNImpl(spec)) {}
 RNN::~RNN() = default;
 
-RNNSpec RNN::GetSpec(void) const {
-  return impl->spec;
-}
+void RNN::Write(std::ostream &out) const { impl->Write(out); }
+
+RNNSpec RNN::GetSpec(void) const { return impl->spec; }
 
 void RNN::ClearMemory(void) { impl->ClearMemory(); }
 
 EVector RNN::Process(const EVector &input) { return impl->Process(input); }
 
-void RNN::Update(const vector<SliceBatch> &trace, float learnRate) { impl->Update(trace, learnRate); }
+void RNN::Update(const vector<SliceBatch> &trace, float learnRate) {
+  impl->Update(trace, learnRate);
+}
 
 void RNN::RefreshAndGetTarget(void) { impl->RefreshAndGetTarget(); }

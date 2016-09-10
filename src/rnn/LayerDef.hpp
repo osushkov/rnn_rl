@@ -13,6 +13,7 @@ struct LayerConnection {
 
   int timeOffset; // should be 0 or 1
 
+  LayerConnection() = default;
   LayerConnection(unsigned srcLayerId, unsigned dstLayerId, int timeOffset)
       : srcLayerId(srcLayerId), dstLayerId(dstLayerId), timeOffset(timeOffset) {
     assert(timeOffset == 0 || timeOffset == 1);
@@ -33,6 +34,7 @@ struct LayerSpec {
   unsigned numNodes;
   bool isOutput;
 
+  LayerSpec() = default;
   LayerSpec(unsigned uid, unsigned numNodes, bool isOutput)
       : uid(uid), numNodes(numNodes), isOutput(isOutput) {
     assert(uid >= 1);

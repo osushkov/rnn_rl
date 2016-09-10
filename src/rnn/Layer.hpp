@@ -21,5 +21,8 @@ struct Layer {
   vector<LayerConnection> outgoing;
 
   Layer(const RNNSpec &nnSpec, const LayerSpec &layerSpec);
+
+  void Read(std::istream &in);
+  void Write(std::ostream &out) const;
 };
 }

@@ -65,4 +65,32 @@ static inline EVector SoftmaxActivations(const EVector &in) {
 
   return result;
 }
+
+static inline EMatrix ReadMatrix(std::istream &in) {
+  int rows, cols;
+  in >> rows;
+  in >> cols;
+
+  assert(rows > 0 && cols > 0);
+
+  EMatrix result(rows, cols);
+  for (int y = 0; y < rows; y++) {
+    for (int x = 0; x < cols; x++) {
+      in >> result(y, x);
+    }
+  }
+
+  return result;
+}
+
+static inline void WriteMatrix(const EMatrix &m, std::ostream &out) {
+  out << m.rows() << std::endl;
+  out << m.cols() << std::endl;
+
+  for (int y = 0; y < m.rows(); y++) {
+    for (int x = 0; x < m.cols(); x++) {
+      out << m(y, x) << std::endl;
+    }
+  }
+}
 }

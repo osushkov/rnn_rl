@@ -1,6 +1,8 @@
 
 #include "Evaluator.hpp"
 #include "common/Common.hpp"
+#include "common/Timer.hpp"
+#include "learning/Constants.hpp"
 #include "learning/LearningAgent.hpp"
 #include "learning/RandomAgent.hpp"
 #include "learning/Trainer.hpp"
@@ -12,6 +14,7 @@
 
 using namespace simulation;
 using namespace renderer;
+using namespace learning;
 
 int main(int argc, char **argv) {
   std::cout << "hello world" << std::endl;
@@ -27,26 +30,59 @@ int main(int argc, char **argv) {
 
   cout << "learning agent end: " << Evaluator::Evaluate(learningAgent.get()) << endl;
 
-  // PhysicsWorld world;
-  // Cart cart(CartSpec(5.0f, 1.0f, 1.0f), world.GetWorld());
-  // cart.Reset(0.0f);
-  // cart.ApplyCartImpulse(-100.0f);
-  //
-  // uptr<Renderer> renderer = make_unique<SFMLRenderer>(800, 400, "Cart Sim");
-  //
-  // for (unsigned i = 0; i < 1000; i++) {
-  //   if (i % 100 == 0 && i > 0) {
-  //     cart.Reset(0.0f);
-  //     cart.ApplyCartImpulse(-100.0f * (-1.0f + 2.0f * (rand() % 2)));
-  //   }
-  //
-  //   world.Step(1.0 / 30.0f);
-  //   world.Render(renderer.get());
-  //   cart.Render(renderer.get());
-  //   renderer->SwapBuffers();
-  //   cout << "step: " << i << endl;
-  //   getchar();
-  // }
+  uptr<Renderer> renderer = make_unique<SFMLRenderer>(1200, 600, "Cart Sim");
+
+  for (unsigned iters = 0; iters < 20; iters++) {
+    cout << "iters: " << iters << endl;
+    renderer->SwapBuffers();
+    getchar();
+
+    PhysicsWorld world;
+
+    CartSpec CART_SPEC(CART_WEIGHT_KG, PENDULUM_LENGTH, PENDULUM_WEIGHT_KG);
+    Cart cart(CART_SPEC, world.GetWorld());
+    cart.Reset(0.1f);
+    learningAgent->ResetMemory();
+
+    Timer timer;
+    timer.Start();
+
+    float secondsSinceLastWorldUpdate = 0.0f;
+    float secondsSinceLastAction = 0.0f;
+    float lastTime = timer.GetElapsedSeconds();
+    while (true) {
+      float time = timer.GetElapsedSeconds();
+      if (time > 15.0f) {
+        break;
+      }
+
+      float frameGap = time - lastTime;
+      lastTime = time;
+
+      if (secondsSinceLastWorldUpdate > (1.0f / 10.0f)) {
+        world.Step(1.0f / 10.0f);
+        secondsSinceLastWorldUpdate = 0.0f;
+      }
+
+      if (secondsSinceLastAction > (1.0f / 2.0f)) {
+        State observedState(cart.GetCartXPos(), cart.GetPendulumX(), cart.GetPendulumY(),
+                            cart.GetHingeAngle());
+        Action performedAction = learningAgent->SelectAction(&observedState);
+
+        cart.ApplyCartImpulse(performedAction.GetImpulse());
+        cart.ApplyPendulumImpulse(math::GaussianSample(0.0f, PENDULUM_WIND_STDDEV));
+
+        secondsSinceLastAction = 0.0f;
+      }
+
+      secondsSinceLastWorldUpdate += frameGap;
+      secondsSinceLastAction += frameGap;
+
+      world.Render(renderer.get());
+      cart.Render(renderer.get());
+      renderer->SwapBuffers();
+    }
+  }
 
   // sf::RenderWindow window(sf::VideoMode(300, 300), "SFML works!");
   // sf::CircleShape shape(100.0f);

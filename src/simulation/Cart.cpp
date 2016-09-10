@@ -134,6 +134,8 @@ struct Pendulum {
         *box, *body.get(), btVector3(0.0f, BOX_HEIGHT / 2.0f + 0.1f, 0.0f),
         btVector3(0.0f, -spec.length / 2.0f, 0.0f), btVector3(0.0f, 0.0f, 1.0f),
         btVector3(0.0f, 0.0f, 1.0f), true);
+
+    joint->setLimit(-1.2f, 1.2f);
   }
 };
 
@@ -268,7 +270,7 @@ struct Cart::CartImpl {
                 trans.getOrigin().getY() - cos(-angle) * pendulum->spec.length / 2.0f);
 
     renderer->DrawLine(start, end);
-    renderer->DrawCircle(start, 1.0);
+    renderer->DrawCircle(start, 2.0);
   }
 
   void ApplyCartImpulse(float newtons) {

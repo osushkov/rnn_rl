@@ -22,7 +22,7 @@ using namespace rnn::cuda;
 
 constexpr float ADAM_BETA1 = 0.9f;
 constexpr float ADAM_BETA2 = 0.999f;
-constexpr float ADAM_LR = 0.01f;
+constexpr float ADAM_LR = 0.0005f;
 constexpr float ADAM_EPSILON = 10e-8;
 
 enum class TrainTask {
@@ -409,12 +409,11 @@ struct CudaTrainer::CudaTrainerImpl {
 
       if (nextSlice == nullptr) {
         executor.Execute(Task::TargetQValues(ts->networkOutput.activation, ts->actionsMask,
-                                      ts->rewards,
-                                             0.9f, true, traceTargets[i].value));
+                                             ts->rewards, 0.9f, true, traceTargets[i].value));
       } else {
         executor.Execute(Task::TargetQValues(nextSlice->networkOutput.activation,
-        nextSlice->actionsMask, ts->rewards,
-                                             0.9f, false, traceTargets[i].value));
+                                             nextSlice->actionsMask, ts->rewards, 0.9f, false,
+                                             traceTargets[i].value));
       }
     }
   }
@@ -507,7 +506,8 @@ struct CudaTrainer::CudaTrainerImpl {
       assert(weights != nullptr);
 
       executor.Execute(Task::AdamIncrement(weights->weights, adamConn->momentum, adamConn->rms,
-                                           ADAM_BETA1, ADAM_BETA2, ADAM_LR * curLearnRate, ADAM_EPSILON));
+                                           ADAM_BETA1, ADAM_BETA2, ADAM_LR * curLearnRate,
+                                           ADAM_EPSILON));
       executor.Execute(Task::TransposeMatrix(weights->weights, weights->weightsT));
     }
   }
@@ -672,4 +672,6 @@ void CudaTrainer::GetWeights(vector<pair<LayerConnection, math::MatrixView>> &ou
 
 void CudaTrainer::UpdateTarget(void) { impl->UpdateTarget(); }
 
-void CudaTrainer::Train(const vector<SliceBatch> &trace, float learnRate) { impl->Train(trace, learnRate); }
+void CudaTrainer::Train(const vector<SliceBatch> &trace, float learnRate) {
+  impl->Train(trace, learnRate);
+}

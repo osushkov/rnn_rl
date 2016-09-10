@@ -30,7 +30,7 @@ struct LearningAgent::LearningAgentImpl {
 
     spec.numInputs = 2;
     spec.numOutputs = Action::NUM_ACTIONS();
-    spec.hiddenActivation = rnn::LayerActivation::ELU;
+    spec.hiddenActivation = rnn::LayerActivation::TANH;
     spec.outputActivation = rnn::LayerActivation::LINEAR;
     spec.nodeActivationRate = 1.0f;
     spec.maxBatchSize = EXPERIENCE_BATCH_SIZE;
@@ -42,15 +42,17 @@ struct LearningAgent::LearningAgentImpl {
     // Connection layer 1 to layer 2, layer 2 to the output layer.
     spec.connections.emplace_back(1, 2, 0);
     spec.connections.emplace_back(2, 3, 0);
+    // spec.connections.emplace_back(3, 4, 0);
 
     // Recurrent self-connections for layers 1 and 2.
-    spec.connections.emplace_back(1, 1, 1);
+    // spec.connections.emplace_back(1, 1, 1);
     spec.connections.emplace_back(2, 2, 1);
     // spec.connections.emplace_back(2, 1, 1);
 
     // 2 layers, 1 hidden.
     spec.layers.emplace_back(1, 64, false);
     spec.layers.emplace_back(2, 64, false);
+    // spec.layers.emplace_back(3, 64, false);
     spec.layers.emplace_back(3, spec.numOutputs, true);
 
     network = make_unique<rnn::RNN>(spec);
